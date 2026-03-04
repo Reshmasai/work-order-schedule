@@ -1,0 +1,52 @@
+/* Import Circular Std font */
+@import url('https://naologic-com-assets.naologic.com/fonts/circular-std/circular-std.css');
+
+/* ng-select base styles */
+@import "@ng-select/ng-select/themes/default.theme.css";
+
+/* ng-bootstrap - no global CSS needed for this component set */
+
+/* ─── Reset & Base ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Circular-Std", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f8f9fc;
+  color: #1a1a2e;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar Styling ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f6fa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d0d3e8;
+  border-radius: 3px;
+
+  &:hover {
+    background: #b8bbda;
+  }
+}
+
+/* ─── Global ng-select overrides ─── */
+.ng-select.ng-select-single .ng-select-container {
+  height: auto;
+  min-height: 36px;
+}
+
+.ng-select .ng-select-container .ng-value-container .ng-input > input {
+  font-family: "Circular-Std", sans-serif;
+}
