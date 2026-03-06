@@ -9,7 +9,6 @@ import {
   AfterViewInit,
   OnInit,
   OnDestroy,
-  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NgSelectModule } from '@ng-select/ng-select';
@@ -21,868 +20,517 @@ import {
   TimelineColumn,
   PanelMode,
   WorkOrderDocument,
+  WorkOrderBar,
 } from '../../models/timeline.models';
 
 @Component({
   selector: 'app-timeline',
   standalone: true,
+  // NgSelectModule for the timescale dropdown, FormsModule for [(ngModel)] two-way binding on it
   imports: [CommonModule, NgSelectModule, FormsModule, WorkOrderPanelComponent],
+  // OnPush means Angular only re-checks this component when a signal changes —
+  // really matters here because the grid can render a lot of rows and bars at once
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div class="timeline-page">
-      <!-- Header -->
-      <div class="page-header">
-        <span class="logo-text">NAOLOGIC</span>
-      </div>
-
-      <!-- Main content -->
-      <div class="page-content">
-        <h1 class="page-title">Work Orders</h1>
-
-        <!-- Timescale selector -->
-        <div class="timescale-bar">
-          <span class="timescale-label">Timescale</span>
-          <div class="timescale-dropdown-wrapper">
-            <ng-select
-              [(ngModel)]="currentView"
-              (ngModelChange)="onViewChange($event)"
-              [clearable]="false"
-              [searchable]="false"
-              class="timescale-select"
-            >
-              @for (opt of viewOptions; track opt.value) {
-                <ng-option [value]="opt.value">{{ opt.label }}</ng-option>
-              }
-            </ng-select>
-          </div>
-        </div>
-
-        <!-- Timeline grid container -->
-        <div class="timeline-container" #timelineContainer>
-          <!-- Left fixed panel: work center names -->
-          <div class="left-panel">
-            <div class="left-header">Work Center</div>
-            @for (wc of workCenters(); track wc.docId) {
-              <div
-                class="left-row"
-                [class.hovered]="hoveredRow() === wc.docId"
-                (mouseenter)="hoveredRow.set(wc.docId)"
-                (mouseleave)="hoveredRow.set(null)"
-              >
-                {{ wc.data.name }}
-              </div>
-            }
-          </div>
-
-          <!-- Right scrollable panel: timeline grid -->
-          <div class="right-panel" #rightPanel (scroll)="onScroll()">
-            <!-- Column headers -->
-            <div class="grid-header" [style.width.px]="totalGridWidth()">
-              @for (col of columns(); track col.date.getTime()) {
-                <div
-                  class="col-header"
-                  [class.current]="col.isCurrent"
-                  [style.min-width.px]="columnWidth()"
-                  [style.max-width.px]="columnWidth()"
-                >
-                  @if (col.isCurrent) {
-                    <span class="current-badge">{{ currentBadgeLabel() }}</span>
-                  } @else {
-                    <span class="col-label">{{ col.label }}</span>
-                  }
-                </div>
-              }
-            </div>
-
-            <!-- Grid rows -->
-            <div class="grid-rows" [style.width.px]="totalGridWidth()">
-              @for (wc of workCenters(); track wc.docId) {
-                <div
-                  class="grid-row"
-                  [class.hovered]="hoveredRow() === wc.docId"
-                  (mouseenter)="hoveredRow.set(wc.docId)"
-                  (mouseleave)="hoveredRow.set(null)"
-                  (click)="onRowClick($event, wc.docId)"
-                >
-                  <!-- Today line -->
-                  <div
-                    class="today-line"
-                    [style.left.px]="todayLineLeft()"
-                  ></div>
-
-                  <!-- Work order bars -->
-                  @for (bar of getBarsForCenter(wc.docId); track bar.workOrder.docId) {
-                    <div
-                      class="wo-bar"
-                      [class]="'status-' + bar.workOrder.data.status"
-                      [style.left.px]="bar.left"
-                      [style.width.px]="bar.width"
-                      (click)="$event.stopPropagation()"
-                      (mouseenter)="hoveredRow.set(wc.docId)"
-                    >
-                      <span class="wo-name">{{ bar.workOrder.data.name }}</span>
-                      <span class="wo-status-badge">{{ getStatusLabel(bar.workOrder.data.status) }}</span>
-                      <button
-                        class="wo-menu-btn"
-                        (click)="toggleMenu($event, bar.workOrder.docId)"
-                        [attr.aria-label]="'Options for ' + bar.workOrder.data.name"
-                      >
-                        <span class="dots">•••</span>
-                      </button>
-
-                      <!-- Dropdown menu -->
-                      @if (openMenuId() === bar.workOrder.docId) {
-                        <div class="wo-dropdown" (click)="$event.stopPropagation()">
-                          <button class="dropdown-item" (click)="onEdit(bar.workOrder)">Edit</button>
-                          <button class="dropdown-item delete" (click)="onDelete(bar.workOrder.docId)">Delete</button>
-                        </div>
-                      }
-                    </div>
-                  }
-
-                  <!-- Hover tooltip: Click to add dates -->
-                  @if (hoveredRow() === wc.docId && !hasOrderAtPosition()) {
-                    <div
-                      class="add-tooltip"
-                      [style.left.px]="hoverX()"
-                    >
-                      Click to add dates
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Work order panel -->
-    <app-work-order-panel
-      [panelMode]="panelMode()"
-      (closed)="closePanel()"
-      (saved)="closePanel()"
-    />
-  `,
-  styles: [`
-    :host {
-      display: block;
-      min-height: 100vh;
-      background: #f8f9fc;
-    }
-
-    /* ─── Page Layout ─── */
-    .page-header {
-      padding: 16px 24px;
-      background: #fff;
-    }
-
-    .logo-text {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      color: #5b5fc7;
-    }
-
-    .page-content {
-      padding: 32px 40px 40px;
-    }
-
-    .page-title {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 24px;
-      font-weight: 600;
-      color: #1a1a2e;
-      margin: 0 0 20px;
-    }
-
-    /* ─── Timescale ─── */
-    .timescale-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .timescale-label {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
-      color: #5b6078;
-    }
-
-    .timescale-dropdown-wrapper {
-      width: 110px;
-    }
-
-    ::ng-deep .timescale-select {
-      .ng-select-container {
-        font-family: "Circular-Std", sans-serif;
-        font-size: 13px;
-        font-weight: 500;
-        color: #5b5fc7;
-        border: 1.5px solid #e2e5ef !important;
-        border-radius: 6px !important;
-        min-height: 32px;
-        box-shadow: none !important;
-        background: #fff;
-      }
-
-      .ng-value-container {
-        padding: 0 8px;
-      }
-
-      .ng-value {
-        color: #5b5fc7 !important;
-        font-weight: 500;
-      }
-
-      .ng-arrow-wrapper .ng-arrow {
-        border-color: #5b5fc7 transparent transparent;
-      }
-
-      .ng-dropdown-panel {
-        border: 1.5px solid #e2e5ef;
-        border-radius: 6px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-        margin-top: 2px;
-      }
-
-      .ng-option {
-        font-family: "Circular-Std", sans-serif;
-        font-size: 13px;
-        padding: 8px 12px;
-        color: #1a1a2e;
-
-        &.ng-option-selected {
-          color: #5b5fc7;
-          font-weight: 500;
-          background: #f0f0fb;
-        }
-
-        &:hover, &.ng-option-marked {
-          background: #f5f6fa;
-        }
-      }
-    }
-
-    /* ─── Timeline Container ─── */
-    .timeline-container {
-      display: flex;
-      border: 1.5px solid #e2e5ef;
-      border-radius: 8px;
-      background: #fff;
-      overflow: hidden;
-    }
-
-    /* ─── Left Panel ─── */
-    .left-panel {
-      flex-shrink: 0;
-      width: 220px;
-      border-right: 1.5px solid #e2e5ef;
-      z-index: 2;
-    }
-
-    .left-header {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 12px;
-      font-weight: 500;
-      color: #8a8fa8;
-      padding: 12px 16px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      border-bottom: 1.5px solid #e2e5ef;
-      box-sizing: border-box;
-    }
-
-    .left-row {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
-      color: #3a3d52;
-      padding: 0 16px;
-      height: 52px;
-      display: flex;
-      align-items: center;
-      border-bottom: 1px solid #f0f1f8;
-      transition: background 0.12s;
-      box-sizing: border-box;
-
-      &.hovered {
-        background: #f4f5fb;
-      }
-
-      &:last-child {
-        border-bottom: none;
-      }
-    }
-
-    /* ─── Right Panel ─── */
-    .right-panel {
-      flex: 1;
-      overflow-x: auto;
-      overflow-y: hidden;
-      position: relative;
-      scroll-behavior: auto;
-
-      &::-webkit-scrollbar {
-        height: 6px;
-      }
-      &::-webkit-scrollbar-track {
-        background: #f5f6fa;
-      }
-      &::-webkit-scrollbar-thumb {
-        background: #d0d3e8;
-        border-radius: 3px;
-      }
-    }
-
-    /* ─── Grid Header ─── */
-    .grid-header {
-      display: flex;
-      height: 44px;
-      border-bottom: 1.5px solid #e2e5ef;
-      position: sticky;
-      top: 0;
-      background: #fff;
-      z-index: 1;
-    }
-
-    .col-header {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-right: 1px solid #f0f1f8;
-      box-sizing: border-box;
-
-      &:last-child {
-        border-right: none;
-      }
-
-      &.current {
-        background: #f0f1fb;
-      }
-    }
-
-    .col-label {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 12px;
-      color: #8a8fa8;
-      white-space: nowrap;
-    }
-
-    .current-badge {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 11px;
-      font-weight: 500;
-      color: #5b5fc7;
-      background: #e8e9fb;
-      padding: 3px 10px;
-      border-radius: 20px;
-      white-space: nowrap;
-    }
-
-    /* ─── Grid Rows ─── */
-    .grid-rows {
-      position: relative;
-    }
-
-    .grid-row {
-      position: relative;
-      height: 52px;
-      border-bottom: 1px solid #f0f1f8;
-      cursor: pointer;
-      transition: background 0.12s;
-      overflow: visible;
-
-      &.hovered {
-        background: #f4f5fb;
-      }
-
-      &:last-child {
-        border-bottom: none;
-      }
-    }
-
-    /* ─── Today Line ─── */
-    .today-line {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: #d0d3e8;
-      opacity: 0.6;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ─── Work Order Bar ─── */
-    .wo-bar {
-      position: absolute;
-      top: 8px;
-      height: 36px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      padding: 0 10px;
-      gap: 8px;
-      z-index: 2;
-      cursor: default;
-      min-width: 80px;
-      overflow: visible;
-      white-space: nowrap;
-      transition: filter 0.12s;
-
-      &:hover {
-        filter: brightness(0.97);
-      }
-
-      &.status-open {
-        background: #ecedfb;
-        border: 1px solid #c5c7f0;
-      }
-
-      &.status-in-progress {
-        background: #ecedfb;
-        border: 1px solid #c5c7f0;
-      }
-
-      &.status-complete {
-        background: #e8f5ec;
-        border: 1px solid #b2dfc0;
-      }
-
-      &.status-blocked {
-        background: #fef6e4;
-        border: 1px solid #f5d57a;
-      }
-    }
-
-    .wo-name {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 12px;
-      font-weight: 500;
-      color: #3a3d52;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      flex-shrink: 1;
-      min-width: 0;
-    }
-
-    .wo-status-badge {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 11px;
-      font-weight: 500;
-      padding: 2px 8px;
-      border-radius: 20px;
-      flex-shrink: 0;
-
-      .status-open & {
-        color: #5b5fc7;
-        background: #dddff7;
-      }
-
-      .status-in-progress & {
-        color: #5b5fc7;
-        background: #dddff7;
-      }
-
-      .status-complete & {
-        color: #276749;
-        background: #c6f6d5;
-      }
-
-      .status-blocked & {
-        color: #b45309;
-        background: #fde68a;
-      }
-    }
-
-    .wo-menu-btn {
-      margin-left: auto;
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 4px;
-      flex-shrink: 0;
-      display: none;
-      color: #8a8fa8;
-      line-height: 1;
-      font-size: 13px;
-      letter-spacing: 1px;
-
-      .wo-bar:hover & {
-        display: flex;
-      }
-
-      &:hover {
-        background: rgba(0,0,0,0.06);
-      }
-    }
-
-    .wo-dropdown {
-      position: absolute;
-      top: calc(100% + 4px);
-      right: 0;
-      background: #fff;
-      border: 1.5px solid #e2e5ef;
-      border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-      z-index: 50;
-      min-width: 100px;
-      padding: 4px 0;
-    }
-
-    .dropdown-item {
-      display: block;
-      width: 100%;
-      font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
-      color: #3a3d52;
-      background: none;
-      border: none;
-      text-align: left;
-      padding: 8px 16px;
-      cursor: pointer;
-
-      &:hover {
-        background: #f5f6fa;
-      }
-
-      &.delete {
-        color: #e53e3e;
-      }
-    }
-
-    /* ─── Add tooltip ─── */
-    .add-tooltip {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      font-family: "Circular-Std", sans-serif;
-      font-size: 12px;
-      color: #fff;
-      background: #2d3050;
-      padding: 5px 12px;
-      border-radius: 6px;
-      pointer-events: none;
-      white-space: nowrap;
-      z-index: 10;
-    }
-
-    .dots {
-      letter-spacing: 2px;
-    }
-  `]
+  templateUrl: './timeline.component.html',
+  styleUrl: './timeline.component.scss',
 })
 export class TimelineComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('rightPanel') rightPanelRef!: ElementRef<HTMLDivElement>;
 
-  private timelineService = inject(TimelineService);
+  // We need a direct reference to the scrollable right panel so we can
+  // a) scroll it programmatically to centre on today, and
+  // b) calculate which column the user clicked based on mouse X + scrollLeft
+  @ViewChild('rightPanel')    private rightPanelRef!:    ElementRef<HTMLDivElement>;
 
+  // The timescale pill element — we measure its width after render so the
+  // ng-select dropdown can be offset to align with it properly
+  @ViewChild('timescalePill') private timescalePillRef!: ElementRef<HTMLDivElement>;
+
+  // Using inject() instead of constructor injection — it's the Angular 17+ idiom
+  // and works more naturally alongside the signals-based state model
+  private readonly timelineService = inject(TimelineService);
+
+  //Public signals the template reads
+
+  // Aliases for the service signals — the template shouldn't have to go
+  // through the service directly, this keeps the template cleaner
   readonly workCenters = this.timelineService.workCenters;
-  readonly workOrders = this.timelineService.workOrders;
+  readonly workOrders  = this.timelineService.workOrders;
 
-  hoveredRow = signal<string | null>(null);
-  openMenuId = signal<string | null>(null);
-  panelMode = signal<PanelMode | null>(null);
-  hoverX = signal<number>(0);
-  currentView: TimescaleView = 'month';
+  // Tracks which row the cursor is over — used to apply the hover highlight
+  // and show the "click to add dates" ghost box on empty columns
+  hoveredRow  = signal<string | null>(null);
 
-  viewOptions = [
-    { value: 'hour' as TimescaleView, label: 'Hour' },
-    { value: 'day' as TimescaleView, label: 'Day' },
-    { value: 'week' as TimescaleView, label: 'Week' },
-    { value: 'month' as TimescaleView, label: 'Month' },
+  // Tracks which specific bar the cursor is over
+  hoveredBar  = signal<string | null>(null);
+
+  // A separate boolean flag for "is the cursor currently on any bar?" —
+  barHovered  = signal<boolean>(false);
+
+  // Holds the docId of whichever bar currently has its dropdown open, or null
+  openMenuId  = signal<string | null>(null);
+
+  // The configuration for the slide-out panel: null = closed, otherwise
+  // either a 'create' config (with workCenterId + clickedDate) or 'edit' (with workOrder)
+  panelMode   = signal<PanelMode | null>(null);
+
+  // The pixel X offset where the ghost box should snap to — updated every
+  // mousemove event so the ghost tracks the user's column as they move
+  ghostLeft   = signal<number>(0);
+
+  // Measured width of the timescale pill after the DOM renders — used to
+  // correctly position the dropdown panel so it doesn't get clipped
+  pillWidth   = signal<number>(220);
+
+  // Kept as a plain property instead of a signal because ng-select's
+  // [(ngModel)] two-way binding doesn't work cleanly with Angular signals
+  currentView: TimescaleView = 'day';
+
+  // The four view options shown in the timescale dropdown
+  readonly viewOptions: { value: TimescaleView; label: string }[] = [
+    { value: 'day',   label: 'Day'   },
+    { value: 'week',  label: 'Week'  },
+    { value: 'month', label: 'Month' },
   ];
 
-  /** Total number of columns shown */
-  private totalCols = signal<number>(14);
+  // The number of columns visible at once — changes with the selected view
+  private readonly totalCols  = signal<number>(30);
 
-  /**
-   * The "anchor" date — the leftmost date in the visible range.
-   * We start centered around today.
-   */
-  private anchorDate = signal<Date>(this.computeAnchor());
+  // The date at the leftmost edge of the grid — we shift this when the view
+  // changes so today is always roughly centred in the visible area
+  private readonly anchorDate = signal<Date>(this.computeAnchor());
 
-  readonly columns = computed<TimelineColumn[]>(() => {
-    return this.buildColumns(this.anchorDate(), this.totalCols(), this.currentView);
-  });
+  // computed() means this rebuilds automatically whenever anchorDate,
+  // totalCols, or currentView changes — no manual subscription needed
+  readonly columns = computed<TimelineColumn[]>(() =>
+    this.buildColumns(this.anchorDate(), this.totalCols(), this.currentView)
+  );
 
-  /** Column width in pixels */
-  columnWidth = signal<number>(120);
+  // Pixel width of a single column — varies by zoom level so the grid
+  // stays readable at each scale (wider columns = more room for labels)
+  columnWidth = signal<number>(80);
 
+  // Total pixel width of the scrollable content area — the grid's inner div
+  // needs this explicitly so the browser renders the horizontal scrollbar correctly
   readonly totalGridWidth = computed(() => this.columns().length * this.columnWidth());
 
+  // Column layout config per view 
+
+  // A lookup table is cleaner than a switch here — easy to add new views
+  // later without changing any of the logic that consumes these values
+  private readonly COLUMN_CONFIG: Record<TimescaleView, { width: number; count: number }> = {
+    day:   { width: 80,  count: 30 },
+    week:  { width: 100, count: 20 }, 
+    month: { width: 120, count: 14 },
+  };
+
+  // Lifecycle
+
   ngOnInit(): void {
+    // Pull any previously saved work orders out of localStorage
     this.timelineService.loadFromStorage();
-    this.updateColumnWidth();
+
+    // Set initial column dimensions based on the default view
+    this.applyColumnConfig();
   }
 
   ngAfterViewInit(): void {
+    // Scroll to centre on today — has to happen after the view is initialised
+    // because we need the rightPanelRef DOM element to be available
     this.scrollToToday();
-  }
 
-  private clickListener = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('.wo-dropdown') && !target.closest('.wo-menu-btn')) {
-      this.openMenuId.set(null);
+    // Measure the pill width now that it's been rendered
+    if (this.timescalePillRef) {
+      this.pillWidth.set(this.timescalePillRef.nativeElement.offsetWidth);
     }
-  };
+  }
 
   ngOnDestroy(): void {
-    document.removeEventListener('click', this.clickListener);
+    // The document-level outside-click listener uses { once: true } so it
+    // normally removes itself automatically, but if the component is destroyed
+    // while the menu is open that callback might never fire — clean it up here
+    document.removeEventListener('click', this.outsideClickListener);
   }
 
+  // View switching
+
   onViewChange(view: TimescaleView): void {
+    // ng-select has already updated the property via ngModel, but we still
+    // need to recalculate the anchor date and re-scroll
     this.currentView = view;
     this.anchorDate.set(this.computeAnchor());
+
     setTimeout(() => this.scrollToToday(), 50);
   }
 
-  onScroll(): void {
-    // Could implement infinite scroll here
-  }
-
+  // Returns the badge label for the currently highlighted column
   currentBadgeLabel(): string {
-    switch (this.currentView) {
-      case 'month': return 'Current month';
-      case 'week': return 'Current week';
-      case 'day': return 'Today';
-      case 'hour': return 'Current hour';
-    }
+    const labels: Record<TimescaleView, string> = {
+      month: 'Current month',
+      week:  'Current week',
+      day:   'Today',
+    };
+    return labels[this.currentView];
   }
 
-  todayLineLeft(): number {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const cols = this.columns();
-    if (!cols.length) return 0;
-    const colW = this.columnWidth();
+  // Bar rendering 
 
-    // Find today's position among columns
-    for (let i = 0; i < cols.length; i++) {
-      const col = cols[i];
-      const colStart = new Date(col.date);
-      colStart.setHours(0, 0, 0, 0);
-      const colEnd = this.addPeriod(colStart, this.currentView);
-
-      if (today >= colStart && today < colEnd) {
-        // Fractional position within column
-        const total = colEnd.getTime() - colStart.getTime();
-        const elapsed = today.getTime() - colStart.getTime();
-        return i * colW + (elapsed / total) * colW;
-      }
-    }
-    return 0;
-  }
-
-  getBarsForCenter(workCenterId: string): { workOrder: WorkOrderDocument; left: number; width: number }[] {
+  /**
+   * Returns all work order bars for a given work center row, as pixel-positioned objects.
+   *
+   * Bars that fall completely outside the visible date range are filtered out.
+   * Bars that partially overlap the visible range are clipped to the grid boundary
+   * so they don't render past the edges of the scrollable area.
+   *
+   * Position formula:
+   *   left  = ((clippedStart - rangeStart) / totalRangeMs) * totalPx
+   *   width = ((clippedEnd   - clippedStart) / totalRangeMs) * totalPx
+   */
+  getBarsForCenter(workCenterId: string): WorkOrderBar[] {
+    // Filter to only orders that belong to this row
     const orders = this.workOrders().filter(wo => wo.data.workCenterId === workCenterId);
+
     const cols = this.columns();
     if (!cols.length) return [];
 
-    const colW = this.columnWidth();
-    const rangeStart = cols[0].date;
-    const rangeEnd = this.addPeriod(cols[cols.length - 1].date, this.currentView);
-    const totalMs = rangeEnd.getTime() - rangeStart.getTime();
-    const totalPx = cols.length * colW;
+    // Compute the shared grid metrics once for all bars in this row
+    const { rangeStart, rangeEnd, totalMs, totalPx } = this.getGridRange(cols);
 
     return orders
-      .map(wo => {
-        const start = new Date(wo.data.startDate);
-        const end = new Date(wo.data.endDate);
-
-        const left = ((start.getTime() - rangeStart.getTime()) / totalMs) * totalPx;
-        const width = ((end.getTime() - start.getTime()) / totalMs) * totalPx;
-
-        return { workOrder: wo, left: Math.max(left, 0), width: Math.max(width, 60) };
-      });
+      .map(wo => this.toBar(wo, rangeStart, rangeEnd, totalMs, totalPx))
+      .filter((b): b is WorkOrderBar => b !== null); // drop anything that didn't make it
   }
 
-  onRowClick(event: MouseEvent, workCenterId: string): void {
-    const target = event.target as HTMLElement;
-    if (target.closest('.wo-bar')) return;
+  /** Turns a single work order into its bar descriptor, or null if it's off-screen. */
+  private toBar(
+    wo: WorkOrderDocument,
+    rangeStart: Date,
+    rangeEnd: Date,
+    totalMs: number,
+    totalPx: number
+  ): WorkOrderBar | null {
+    // Parse and normalise to midnight — this prevents time-zone-related off-by-one issues 
+    const s = new Date(wo.data.startDate); s.setHours(0, 0, 0, 0);
+    const e = new Date(wo.data.endDate);   e.setHours(0, 0, 0, 0);
 
-    const rightPanel = this.rightPanelRef.nativeElement;
-    const rect = rightPanel.getBoundingClientRect();
-    const scrollLeft = rightPanel.scrollLeft;
-    const clickX = event.clientX - rect.left + scrollLeft;
+    // Skip if either date is malformed
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
 
-    const cols = this.columns();
+    // Clip to the visible range — a work order that started 3 months ago
+    // should still render starting from the left edge of the grid, not at a
+    // negative pixel offset
+    const clippedS = Math.max(s.getTime(), rangeStart.getTime());
+    const clippedE = Math.min(e.getTime(), rangeEnd.getTime());
+
+    // If the clipped range is zero or inverted the order is fully off-screen
+    if (clippedS >= clippedE) return null;
+
+    const left  = ((clippedS - rangeStart.getTime()) / totalMs) * totalPx;
+    const width = ((clippedE - clippedS) / totalMs) * totalPx;
+
+    // Anything narrower than 4px is too thin to be useful — skip it
+    if (width < 4) return null;
+
+    return { workOrder: wo, left, width };
+  }
+
+  /** Calculates the time-span and pixel-span of the full visible grid. Called
+   *  once per getBarsForCenter() call rather than once per bar. */
+  private getGridRange(cols: TimelineColumn[]) {
+    const colW       = this.columnWidth();
+    const rangeStart = cols[0].date;
+
+    // The grid ends one period after the last column's start date
+    const rangeEnd   = this.addPeriod(cols[cols.length - 1].date, this.currentView);
+
+    const totalMs    = rangeEnd.getTime() - rangeStart.getTime();
+    const totalPx    = cols.length * colW;
+    return { rangeStart, rangeEnd, totalMs, totalPx };
+  }
+
+  // Ghost / hover helpers
+
+  isHoveringBar(): boolean { return this.barHovered(); }
+
+  /**
+   * Returns true if the column under the cursor already has a work order
+   */
+  isColumnOccupied(workCenterId: string): boolean {
+    const colLeft  = this.ghostLeft();
+    const colRight = colLeft + this.columnWidth();
+
+    // An overlap exists if any bar's pixel range intersects this column's pixel range
+    return this.getBarsForCenter(workCenterId).some(
+      bar => bar.left < colRight && (bar.left + bar.width) > colLeft
+    );
+  }
+
+  onRowMouseEnter(e: MouseEvent, workCenterId: string): void {
+    this.hoveredRow.set(workCenterId);
+    this.updateGhostLeft(e);
+  }
+
+  onRowMouseMove(e: MouseEvent): void {
+    // Continuously track the cursor as it moves across column boundaries
+    this.updateGhostLeft(e);
+  }
+
+  /**
+   * Converts the raw mouse X coordinate into a column-snapped pixel offset.
+   * We need to account for: the panel's position on screen (getBoundingClientRect)
+   * and how far it's been scrolled horizontally (scrollLeft).
+   */
+  private updateGhostLeft(e: MouseEvent): void {
+    const panel = this.rightPanelRef?.nativeElement;
+    if (!panel) return;
+
+    // Mouse X relative to the scrollable content area (not the viewport)
+    const mx   = e.clientX - panel.getBoundingClientRect().left + panel.scrollLeft;
     const colW = this.columnWidth();
-    const colIndex = Math.floor(clickX / colW);
-    const clickedDate = cols[Math.min(colIndex, cols.length - 1)]?.date;
 
-    if (!clickedDate) return;
-
-    const dateStr = clickedDate.toISOString().split('T')[0];
-    this.panelMode.set({ mode: 'create', workCenterId, clickedDate: dateStr });
+    // Round down to the nearest column boundary so the ghost snaps to columns
+    this.ghostLeft.set(Math.floor(mx / colW) * colW);
   }
 
-  onEdit(wo: WorkOrderDocument): void {
+  // Row / bar click interactions
+
+  /**
+   * Handles a click on the empty row background — opens the create panel
+   * with the clicked column's date pre-filled as the suggested start date.
+   *
+   * We explicitly guard against clicks on bar elements, dropdowns, and the
+   * CTA control button so those don't also trigger the create panel.
+   */
+  onRowClick(event: MouseEvent, workCenterId: string): void {
+    const t = event.target as HTMLElement;
+    // Walk up the DOM from the click target — if we hit any of these elements,
+    // the user was clicking on existing UI, not the empty row background
+    if (t.closest('.wo-bar') || t.closest('.wo-dropdown') || t.closest('.wo-menu-btn')) return;
+
+    const panel = this.rightPanelRef.nativeElement;
+    // Same coordinate transform as updateGhostLeft
+    const mx    = event.clientX - panel.getBoundingClientRect().left + panel.scrollLeft;
+    const cols  = this.columns();
+
+    // Which column index did the click land in?
+    const idx   = Math.min(Math.floor(mx / this.columnWidth()), cols.length - 1);
+    if (!cols[idx]) return;
+
+    this.panelMode.set({
+      mode:        'create',
+      workCenterId,
+      // Pass the date as an ISO string — the panel component handles display formatting
+      clickedDate: cols[idx].date.toISOString().split('T')[0],
+    });
+  }
+
+  onEdit(wo: WorkOrderDocument, event?: MouseEvent): void {
+    // Stop propagation so the click doesn't also bubble up to the row handler
+    // and try to open a create panel at the same time as the edit panel
+    event?.stopPropagation();
+
+    // Close the CTA control dropdown first so it doesn't linger while the panel opens
     this.openMenuId.set(null);
     this.panelMode.set({ mode: 'edit', workOrder: wo });
   }
 
   onDelete(docId: string): void {
+    // Always close the dropdown before deleting — otherwise the dropdown
+    // stays visible on the row even after the bar it belongs to is gone
     this.openMenuId.set(null);
     this.timelineService.deleteWorkOrder(docId);
   }
 
   toggleMenu(event: MouseEvent, docId: string): void {
+    // stopPropagation keeps this click from reaching the row handler and from 
+    // triggering the outside-click listener
     event.stopPropagation();
+
+    // Toggle between open and closed — clicking the same CTA controls button twice closes it
     this.openMenuId.update(id => (id === docId ? null : docId));
 
+    // If a menu just opened, register a one-shot document listener so clicking
+    // anywhere outside the dropdown automatically closes it
     if (this.openMenuId() !== null) {
-      // Close on outside click
-      setTimeout(() => {
-        document.addEventListener('click', this.clickListener, { once: true });
-      });
+      // Defer by one tick so that this very click event doesn't immediately
+      // fire the listener we're registering (event propagation order)
+      setTimeout(() => document.addEventListener('click', this.outsideClickListener, { once: true }));
     }
   }
 
   closePanel(): void {
+    // Setting panelMode to null triggers the CSS class removal and the panel slides out
     this.panelMode.set(null);
   }
 
-  hasOrderAtPosition(): boolean {
-    return false; // simplified
-  }
+  // Hook for future infinite-scroll or lazy column loading
+  onScroll(): void { }
 
+  // Maps internal status strings to the display labels shown in bar badges
   getStatusLabel(status: string): string {
     const map: Record<string, string> = {
-      open: 'Open',
+      open:          'Open',
       'in-progress': 'In progress',
-      complete: 'Complete',
-      blocked: 'Blocked',
+      complete:      'Complete',
+      blocked:       'Blocked',
     };
-    return map[status] ?? status;
+    return map[status] ?? status; // fall back to the raw value if unknown
   }
 
+  // Column building
+
+  /**
+   * Determines the leftmost date to render so that today is roughly centred
+   * in the visible grid area.
+   *
+   * Month view:  go back 3 full calendar months (land on the 1st)
+   * Week view:   go back 8 full weeks from today's Sunday
+   * Day view:    go back 14 days from today
+   */
   private computeAnchor(): Date {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Center on today — go back some columns
     switch (this.currentView) {
-      case 'month': {
-        const d = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-        return d;
-      }
+      case 'month':
+        // Always land on the 1st of a month so columns align to month boundaries
+        return new Date(today.getFullYear(), today.getMonth() - 3, 1);
+
       case 'week': {
         const d = new Date(today);
-        d.setDate(d.getDate() - d.getDay() - 8 * 7);
+        // Rewind to last Sunday (getDay() == 0), then go back 8 more weeks
+        d.setDate(d.getDate() - d.getDay() - 56);
         return d;
       }
+
       case 'day': {
         const d = new Date(today);
         d.setDate(d.getDate() - 14);
         return d;
       }
-      case 'hour': {
-        const d = new Date(today);
-        d.setHours(d.getHours() - 12, 0, 0, 0);
-        return d;
-      }
     }
   }
 
+  /**
+   * Builds the array of column descriptors. Each entry describes one visible column
+   * and is used both for rendering the header and for positioning work order bars.
+   */
   private buildColumns(anchor: Date, count: number, view: TimescaleView): TimelineColumn[] {
-    const cols: TimelineColumn[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    for (let i = 0; i < count; i++) {
+    return Array.from({ length: count }, (_, i) => {
+      // Step forward from the anchor by i periods
       const date = this.addPeriodN(anchor, view, i);
-      const label = this.formatColumnLabel(date, view);
-      const isCurrent = this.isCurrentPeriod(date, view, today);
-
-      cols.push({ date, label, isToday: this.isSameDay(date, today), isCurrent });
-    }
-    return cols;
+      return {
+        date,
+        label:     this.formatColumnLabel(date, view),
+        isToday:   this.isSameDay(date, today),
+        // isCurrent is what drives the badge and the highlighted column border
+        isCurrent: this.isCurrentPeriod(date, view, today),
+      };
+    });
   }
 
-  private formatColumnLabel(date: Date, view: TimescaleView): string {
-    switch (view) {
-      case 'month':
-        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      case 'week': {
-        const end = new Date(date);
-        end.setDate(end.getDate() + 6);
-        return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-      }
-      case 'day':
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      case 'hour':
-        return date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+  // Formats the column header text — month view shows year too, day/week just show day
+  private formatColumnLabel(d: Date, v: TimescaleView): string {
+    switch (v) {
+      case 'month': return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      case 'week':
+      case 'day':   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
   }
 
-  private isCurrentPeriod(date: Date, view: TimescaleView, today: Date): boolean {
-    switch (view) {
+  /**
+   * Returns true if the given column date is the "current" period —
+   * same calendar month for month view, same week for week view, today for day view.
+   */
+  private isCurrentPeriod(d: Date, v: TimescaleView, today: Date): boolean {
+    switch (v) {
       case 'month':
-        return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+
       case 'week': {
+        // Week columns start on Sunday — find this week's Sunday
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - today.getDay());
         weekStart.setHours(0, 0, 0, 0);
-        return this.isSameDay(date, weekStart);
+        return this.isSameDay(d, weekStart);
       }
+
       case 'day':
-        return this.isSameDay(date, today);
-      case 'hour':
-        return date.getHours() === today.getHours() && this.isSameDay(date, today);
+        return this.isSameDay(d, today);
     }
   }
 
-  private addPeriodN(base: Date, view: TimescaleView, n: number): Date {
+  // Date helpers
+
+  // Advances a date by n periods without mutating the original
+  private addPeriodN(base: Date, v: TimescaleView, n: number): Date {
+    // copy so as not to mutate the anchor signal
     const d = new Date(base);
-    switch (view) {
+    switch (v) {
       case 'month': d.setMonth(d.getMonth() + n); break;
-      case 'week': d.setDate(d.getDate() + n * 7); break;
-      case 'day': d.setDate(d.getDate() + n); break;
-      case 'hour': d.setHours(d.getHours() + n); break;
+      case 'week':  d.setDate(d.getDate() + n * 7); break;
+      case 'day':   d.setDate(d.getDate() + n); break;
     }
     return d;
   }
 
-  private addPeriod(date: Date, view: TimescaleView): Date {
-    return this.addPeriodN(date, view, 1);
+  // Single-period advance — used when computing rangeEnd for bar positioning
+  private addPeriod(d: Date, v: TimescaleView): Date {
+    return this.addPeriodN(d, v, 1);
   }
 
+  // Compares two dates by year/month/day only, ignoring time
   private isSameDay(a: Date, b: Date): boolean {
-    return a.getDate() === b.getDate() &&
-      a.getMonth() === b.getMonth() &&
-      a.getFullYear() === b.getFullYear();
+    return a.getDate()     === b.getDate()
+        && a.getMonth()    === b.getMonth()
+        && a.getFullYear() === b.getFullYear();
   }
 
-  private updateColumnWidth(): void {
-    switch (this.currentView) {
-      case 'month': this.columnWidth.set(120); this.totalCols.set(14); break;
-      case 'week': this.columnWidth.set(100); this.totalCols.set(20); break;
-      case 'day': this.columnWidth.set(80); this.totalCols.set(30); break;
-      case 'hour': this.columnWidth.set(80); this.totalCols.set(48); break;
-    }
+  // Scroll helpers
+
+  // Applies the column width and count for the active view, updating the signals
+  // that drive computed grid dimensions
+  private applyColumnConfig(): void {
+    const { width, count } = this.COLUMN_CONFIG[this.currentView];
+    this.columnWidth.set(width);
+    this.totalCols.set(count);
   }
 
   private scrollToToday(): void {
     const panel = this.rightPanelRef?.nativeElement;
     if (!panel) return;
 
-    this.updateColumnWidth();
-    const cols = this.columns();
+    // Make sure dimensions are up to date before we calculate scroll position
+    this.applyColumnConfig();
+
+    const cols  = this.columns();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let todayCol = cols.findIndex(c => this.isCurrentPeriod(c.date, this.currentView, today));
-    if (todayCol < 0) todayCol = Math.floor(cols.length / 2);
+    // Find the column that represents the current period
+    let idx = cols.findIndex(c => this.isCurrentPeriod(c.date, this.currentView, today));
+
+    // If today isn't within the rendered range for some reason, fall back to centre
+    if (idx < 0) idx = Math.floor(cols.length / 2);
 
     const colW = this.columnWidth();
-    const panelWidth = panel.clientWidth;
-    const scrollTo = todayCol * colW - panelWidth / 2 + colW / 2;
-    panel.scrollLeft = Math.max(0, scrollTo);
+    // Scroll so the current-period column is horizontally centred in the viewport
+    panel.scrollLeft = Math.max(0, idx * colW - panel.clientWidth / 2 + colW / 2);
   }
+
+  // Outside-click handler
+
+  /**
+   * Defined as an arrow function (not a method) to safely pass it to
+   * addEventListener and removeEventListener by reference.
+   */
+  private readonly outsideClickListener = (e: MouseEvent): void => {
+    const t = e.target as HTMLElement;
+    // Leave the menu open if the user clicked inside it or on the ••• button
+    if (!t.closest('.wo-dropdown') && !t.closest('.wo-menu-btn')) {
+      this.openMenuId.set(null);
+    }
+  };
 }

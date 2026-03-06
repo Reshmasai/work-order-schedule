@@ -1,5 +1,5 @@
 export type WorkOrderStatus = 'open' | 'in-progress' | 'complete' | 'blocked';
-export type TimescaleView = 'hour' | 'day' | 'week' | 'month';
+export type TimescaleView = 'day' | 'week' | 'month';
 
 export interface WorkCenterDocument {
   docId: string;
@@ -25,14 +25,13 @@ export interface TimelineColumn {
   date: Date;
   label: string;
   isToday: boolean;
-  isCurrent: boolean; // current week/month
+  isCurrent: boolean;
 }
 
 export interface WorkOrderBar {
   workOrder: WorkOrderDocument;
-  leftPct: number;
-  widthPct: number;
-  visible: boolean;
+  left: number;
+  width: number;
 }
 
 export interface PanelMode {
