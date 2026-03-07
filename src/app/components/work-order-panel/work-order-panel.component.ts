@@ -1,457 +1,215 @@
 import {
-  Component,
-  Input,
-  Output,
-  EventEmitter,
-  OnChanges,
-  SimpleChanges,
-  inject,
-  ChangeDetectionStrategy
+  Component, Input, Output, EventEmitter,
+  OnChanges, SimpleChanges, inject, ChangeDetectionStrategy, signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { NgSelectModule } from '@ng-select/ng-select';
+import { NgbDatepickerModule, NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
+import { Observable, startWith, map } from 'rxjs';
 import { PanelMode, WorkOrderStatus } from '../../models/timeline.models';
 import { TimelineService } from '../../services/timeline.service';
 
+// Group-level validator that compares both date fields at once.
+// It lives at the FormGroup level rather than on a single control because
+// Angular calls it whenever any field in the group changes
 function endAfterStart(group: AbstractControl): ValidationErrors | null {
-  const start = group.get('startDate')?.value;
-  const end = group.get('endDate')?.value;
-  if (start && end && new Date(end) <= new Date(start)) {
-    return { endBeforeStart: true };
-  }
-  return null;
+  const start = group.get('startDate')?.value as NgbDateStruct | null;
+  const end   = group.get('endDate')?.value as NgbDateStruct | null;
+
+  // If either field is still empty we let the required validator handle it —
+  // no point showing "end before start" when the user hasn't finished yet
+  if (!start || !end) return null;
+
+  const toMs = (d: NgbDateStruct) => new Date(d.year, d.month - 1, d.day).getTime();
+
+  // Same-day end is also invalid — a zero-duration work order makes no sense on the timeline
+  return toMs(end) <= toMs(start) ? { endBeforeStart: true } : null;
 }
 
 @Component({
   selector: 'app-work-order-panel',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, NgSelectModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <!-- Overlay backdrop -->
-    <div
-      class="panel-backdrop"
-      [class.visible]="panelMode !== null"
-      (click)="onBackdropClick()"
-    ></div>
-
-    <!-- Slide-out panel -->
-    <div class="panel" [class.open]="panelMode !== null" role="dialog" aria-modal="true">
-      <div class="panel-inner">
-        <!-- Header -->
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Work Order Details</h2>
-            <p class="panel-subtitle">Specify the dates, name and status for this order</p>
-          </div>
-          <div class="panel-actions">
-            <button type="button" class="btn-cancel" (click)="onCancel()">Cancel</button>
-            <button type="button" class="btn-create" (click)="onSubmit()">
-              {{ panelMode?.mode === 'edit' ? 'Save' : 'Create' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Form -->
-        <form [formGroup]="form" class="panel-form" (keydown.escape)="onCancel()">
-          <!-- Work Order Name -->
-          <div class="form-field">
-            <label class="field-label">Work Order Name</label>
-            <input
-              type="text"
-              class="field-input"
-              [class.active]="form.get('name')?.dirty || form.get('name')?.touched"
-              [class.error]="form.get('name')?.invalid && form.get('name')?.touched"
-              formControlName="name"
-              placeholder="Acme Inc."
-              autocomplete="off"
-            />
-            @if (form.get('name')?.invalid && form.get('name')?.touched) {
-              <span class="field-error">Work order name is required.</span>
-            }
-          </div>
-
-          <!-- Status -->
-          <div class="form-field">
-            <label class="field-label">Status</label>
-            <ng-select
-              formControlName="status"
-              [clearable]="false"
-              [searchable]="false"
-              class="status-select"
-              [ngClass]="'status-' + form.get('status')?.value"
-            >
-              @for (opt of statusOptions; track opt.value) {
-                <ng-option [value]="opt.value">{{ opt.label }}</ng-option>
-              }
-            </ng-select>
-          </div>
-
-          <!-- End Date -->
-          <div class="form-field">
-            <label class="field-label">End date</label>
-            <input
-              type="date"
-              class="field-input date-input"
-              formControlName="endDate"
-              [class.error]="form.get('endDate')?.invalid && form.get('endDate')?.touched"
-            />
-          </div>
-
-          <!-- Start Date -->
-          <div class="form-field">
-            <label class="field-label">Start date</label>
-            <input
-              type="date"
-              class="field-input date-input"
-              formControlName="startDate"
-              [class.error]="form.get('startDate')?.invalid && form.get('startDate')?.touched"
-            />
-          </div>
-
-          <!-- Cross-field error -->
-          @if (form.errors?.['endBeforeStart'] && form.touched) {
-            <div class="form-error-banner">
-              End date must be after start date.
-            </div>
-          }
-
-          <!-- Overlap error -->
-          @if (overlapError) {
-            <div class="form-error-banner">{{ overlapError }}</div>
-          }
-        </form>
-      </div>
-    </div>
-  `,
-  styles: [`
-    :host {
-      display: contents;
-    }
-
-    .panel-backdrop {
-      position: fixed;
-      inset: 0;
-      background: transparent;
-      z-index: 99;
-      display: none;
-      pointer-events: none;
-
-      &.visible {
-        display: block;
-        pointer-events: auto;
-      }
-    }
-
-    .panel {
-      position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 420px;
-      background: #fff;
-      box-shadow: -4px 0 24px rgba(0,0,0,0.10);
-      z-index: 100;
-      transform: translateX(100%);
-      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-      overflow-y: auto;
-
-      &.open {
-        transform: translateX(0);
-      }
-    }
-
-    .panel-inner {
-      padding: 24px 24px 32px;
-      min-height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      margin-bottom: 28px;
-      gap: 16px;
-    }
-
-    .panel-title {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 18px;
-      font-weight: 600;
-      color: #1a1a2e;
-      margin: 0 0 4px;
-    }
-
-    .panel-subtitle {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
-      color: #8a8fa8;
-      margin: 0;
-    }
-
-    .panel-actions {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-shrink: 0;
-    }
-
-    .btn-cancel {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      color: #5b6078;
-      background: none;
-      border: none;
-      padding: 8px 12px;
-      cursor: pointer;
-      border-radius: 6px;
-      transition: background 0.15s;
-
-      &:hover {
-        background: #f5f6fa;
-      }
-    }
-
-    .btn-create {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      color: #fff;
-      background: #5b5fc7;
-      border: none;
-      padding: 8px 20px;
-      cursor: pointer;
-      border-radius: 6px;
-      transition: background 0.15s;
-
-      &:hover {
-        background: #4a4eb8;
-      }
-    }
-
-    .panel-form {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      flex: 1;
-    }
-
-    .form-field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .field-label {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      color: #5b6078;
-    }
-
-    .field-input {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 14px;
-      color: #1a1a2e;
-      background: #fff;
-      border: 1.5px solid #e2e5ef;
-      border-radius: 6px;
-      padding: 10px 14px;
-      outline: none;
-      transition: border-color 0.15s;
-      width: 100%;
-      box-sizing: border-box;
-
-      &::placeholder {
-        color: #bbbdcc;
-      }
-
-      &.active, &:focus {
-        border-color: #5b5fc7;
-      }
-
-      &.error {
-        border-color: #e53e3e;
-      }
-    }
-
-    .date-input {
-      color: #8a8fa8;
-
-      &:focus, &.active {
-        color: #1a1a2e;
-      }
-    }
-
-    .field-error {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 12px;
-      color: #e53e3e;
-    }
-
-    .form-error-banner {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
-      color: #e53e3e;
-      background: #fff5f5;
-      border: 1px solid #fed7d7;
-      border-radius: 6px;
-      padding: 10px 14px;
-    }
-
-    /* ng-select overrides */
-    ::ng-deep .status-select {
-      .ng-select-container {
-        font-family: "Circular-Std", sans-serif;
-        font-size: 14px;
-        border: 1.5px solid #e2e5ef !important;
-        border-radius: 6px !important;
-        min-height: 42px;
-        box-shadow: none !important;
-        transition: border-color 0.15s;
-      }
-
-      &.ng-select-focused .ng-select-container {
-        border-color: #5b5fc7 !important;
-      }
-
-      .ng-value-container {
-        padding: 0 12px;
-      }
-
-      .ng-arrow-wrapper {
-        padding-right: 12px;
-      }
-
-      .ng-dropdown-panel {
-        border: 1.5px solid #e2e5ef;
-        border-radius: 6px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-        margin-top: 4px;
-      }
-
-      .ng-option {
-        font-family: "Circular-Std", sans-serif;
-        font-size: 14px;
-        padding: 10px 14px;
-        color: #1a1a2e;
-
-        &:hover, &.ng-option-marked {
-          background: #f5f6fa;
-        }
-      }
-
-      /* Status value styling */
-      &.status-open .ng-value { color: #5b5fc7; font-weight: 500; }
-      &.status-in-progress .ng-value { color: #5b5fc7; font-weight: 500; }
-      &.status-complete .ng-value { color: #38a169; font-weight: 500; }
-      &.status-blocked .ng-value { color: #d97706; font-weight: 500; }
-    }
-  `]
+  // NgbDatepickerModule provides the date picker popup on the date input fields
+  imports: [CommonModule, ReactiveFormsModule, NgSelectModule, NgbDatepickerModule],
+  // Using Default change detection (not OnPush) here because the ngb-datepicker
+  // integration triggers change detection in ways that don't play nicely with OnPush
+  changeDetection: ChangeDetectionStrategy.Default,
+  templateUrl: './work-order-panel.component.html',
+  styleUrl: './work-order-panel.component.scss'
 })
 export class WorkOrderPanelComponent implements OnChanges {
+
+  // null = panel is closed; a mode object = panel is open in create or edit mode
   @Input() panelMode: PanelMode | null = null;
+
+  // "closed" fires when the user cancels or clicks the backdrop (no data was saved)
   @Output() closed = new EventEmitter<void>();
-  @Output() saved = new EventEmitter<void>();
+
+  // "saved" fires only after a successful create or update
+  @Output() saved  = new EventEmitter<void>();
 
   private fb = inject(FormBuilder);
   private timelineService = inject(TimelineService);
 
+  // Holds any overlap error message returned by the service after a failed save.
   overlapError: string | null = null;
 
-  form: FormGroup = this.fb.group({
-    name: ['', Validators.required],
-    status: ['open' as WorkOrderStatus, Validators.required],
-    startDate: ['', Validators.required],
-    endDate: ['', Validators.required],
-  }, { validators: endAfterStart });
+  // Tracks the currently selected status value so we can apply the right coloured
+  // pill class on the ng-select container (e.g. status-val-blocked -> amber pill).
+  // A signal works well here because the template reads it reactively without subscribing.
+  selectedStatus = signal<string>('open');
 
+  // The reactive form — defined at class level so TypeScript can infer the type
+  // and we avoid any initialisation-order issues that can arise in the constructor
+  form: FormGroup = this.fb.group({
+    name:      ['', Validators.required],
+    status:    ['open' as WorkOrderStatus, Validators.required],
+    startDate: [null as NgbDateStruct | null, Validators.required],
+    endDate:   [null as NgbDateStruct | null, Validators.required],
+  }, { validators: endAfterStart }); // group-level validator runs on every change
+
+  // An observable version of the status value, startWith ensures it emits
+  // immediately so the pill class renders correctly on first open.
+  statusValue$: Observable<string> = this.form.get('status')!.valueChanges.pipe(
+    startWith('open'),
+    map(v => v || 'open')
+  );
+
+  // The four statuses available in the dropdown — order matches the design mockup
   statusOptions: { value: WorkOrderStatus; label: string }[] = [
-    { value: 'open', label: 'Open' },
+    { value: 'open',        label: 'Open'        },
     { value: 'in-progress', label: 'In progress' },
-    { value: 'complete', label: 'Complete' },
-    { value: 'blocked', label: 'Blocked' },
+    { value: 'complete',    label: 'Complete'    },
+    { value: 'blocked',     label: 'Blocked'     },
   ];
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['panelMode']) {
-      this.overlapError = null;
-      const mode = this.panelMode;
-      if (mode) {
-        if (mode.mode === 'edit' && mode.workOrder) {
-          const wo = mode.workOrder;
-          this.form.reset({
-            name: wo.data.name,
-            status: wo.data.status,
-            startDate: wo.data.startDate,
-            endDate: wo.data.endDate,
-          });
-        } else {
-          // Create mode
-          const startDate = mode.clickedDate ?? new Date().toISOString().split('T')[0];
-          const endDate = this.addDays(startDate, 7);
-          this.form.reset({
-            name: '',
-            status: 'open',
-            startDate,
-            endDate,
-          });
-        }
-      }
+    // We only care about the panelMode input changing — ignore anything else
+    if (!changes['panelMode']) return;
+
+    // Clear any overlap error from the previous open/close cycle
+    this.overlapError = null;
+
+    const mode = this.panelMode;
+
+    // If the panel just closed (panelMode went to null) we don't need to do
+    // anything — the form state will be reset the next time it opens
+    if (!mode) return;
+
+    if (mode.mode === 'edit' && mode.workOrder) {
+      // Edit mode: pre-fill every field with the existing work order's values
+      const wo = mode.workOrder;
+      this.form.reset({
+        name:      wo.data.name,
+        status:    wo.data.status,
+        startDate: this.isoToNgb(wo.data.startDate), // "2025-09-01" -> NgbDateStruct
+        endDate:   this.isoToNgb(wo.data.endDate),
+      });
+      this.selectedStatus.set(wo.data.status);
+
+    } else {
+      // Create mode: blank name, "Open" status, start date = the column the user
+      // clicked, end date = start + 7 days as a default
+      const startIso = mode.clickedDate ?? new Date().toISOString().split('T')[0];
+      this.form.reset({
+        name:      '',
+        status:    'open',
+        startDate: this.isoToNgb(startIso),
+        endDate:   this.isoToNgb(this.addDays(startIso, 7)),
+      });
+      this.selectedStatus.set('open');
     }
+
+    // Subscribe to status field changes so selectedStatus stays in sync with
+    // whatever the user picks. This drives the coloured pill class on the dropdown.
+    // We don't unsubscribe here because ngOnChanges fires fresh each time the
+    // panel opens, resetting the form and effectively ending the old subscription.
+    this.form.get('status')!.valueChanges.subscribe(val => {
+      this.selectedStatus.set(val || 'open');
+    });
   }
 
   onSubmit(): void {
+    // Touch every field so required / validation error messages become visible
+    // even if the user clicks Create without having touched any input
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
 
     const val = this.form.value;
+
+    // In edit mode the work center is inherited from the existing work order.
+    // In create mode it comes from whichever row the user clicked.
     const workCenterId = this.panelMode?.mode === 'edit'
       ? this.panelMode.workOrder!.data.workCenterId
       : this.panelMode?.workCenterId ?? '';
 
-    let result: { success: boolean; error?: string };
+    // Convert NgbDateStructs back to ISO strings before sending to the service —
+    // the service and localStorage always work in "YYYY-MM-DD" format
+    const payload = {
+      name:        val.name,
+      workCenterId,
+      status:      val.status,
+      startDate:   this.ngbToIso(val.startDate),
+      endDate:     this.ngbToIso(val.endDate),
+    };
 
-    if (this.panelMode?.mode === 'edit' && this.panelMode.workOrder) {
-      result = this.timelineService.updateWorkOrder(this.panelMode.workOrder.docId, {
-        name: val.name,
-        workCenterId,
-        status: val.status,
-        startDate: val.startDate,
-        endDate: val.endDate,
-      });
-    } else {
-      result = this.timelineService.addWorkOrder({
-        name: val.name,
-        workCenterId,
-        status: val.status,
-        startDate: val.startDate,
-        endDate: val.endDate,
-      });
-    }
+    // Route to update vs add depending on the current panel mode
+    const result = this.panelMode?.mode === 'edit' && this.panelMode.workOrder
+      ? this.timelineService.updateWorkOrder(this.panelMode.workOrder.docId, payload)
+      : this.timelineService.addWorkOrder(payload);
 
     if (result.success) {
+      // Save succeeded — clear any stale error and tell the parent to close the panel
       this.overlapError = null;
       this.saved.emit();
     } else {
+      // The service found an overlapping order — show the message inside the panel
+      // so the user can adjust the dates without losing their other input
       this.overlapError = result.error ?? null;
     }
   }
 
-  onCancel(): void {
-    this.closed.emit();
+  // Called when the user clicks Cancel
+  onCancel(): void { this.closed.emit(); }
+
+  // Called when the user clicks the transparent backdrop behind the panel
+  onBackdropClick(): void { this.closed.emit(); }
+
+  // Looks up the human-readable label for a status key — used in the template
+  // to display the selected value text inside the dropdown trigger
+  getStatusLabel(value: string): string {
+    return this.statusOptions.find(o => o.value === value)?.label ?? value;
   }
 
-  onBackdropClick(): void {
-    this.closed.emit();
+  // Formats an NgbDateStruct for display in the date input fields.
+  // The design spec uses DD.MM.YYYY (dot-separated) as shown in the mockups.
+  // Pads day and month to two digits so "9" becomes "09".
+  formatDate(d: NgbDateStruct | null): string {
+    if (!d) return '';
+    return `${String(d.day).padStart(2, '0')}.${String(d.month).padStart(2, '0')}.${d.year}`;
   }
 
-  private addDays(dateStr: string, days: number): string {
-    const d = new Date(dateStr);
+  // Converts an ISO date string ("YYYY-MM-DD") to the NgbDateStruct format
+  // that ngb-datepicker stores and compares internally ({ year, month, day } as numbers).
+  // NgbDateStruct.month is 1-based (1 = January), same as ISO.
+  private isoToNgb(iso: string): NgbDateStruct | null {
+    if (!iso) return null;
+    const [y, m, d] = iso.split('-').map(Number);
+    return { year: y, month: m, day: d };
+  }
+
+  // Converts an NgbDateStruct back to an ISO string for storage and service calls.
+  // Pads month and day to keep the format consistent across the whole app.
+  private ngbToIso(d: NgbDateStruct | null): string {
+    if (!d) return '';
+    return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
+  }
+
+  // Advances an ISO date string by a given number of days.
+  // Used to compute the default end date when the create panel opens (start + 7 days).
+  private addDays(iso: string, days: number): string {
+    const d = new Date(iso);
     d.setDate(d.getDate() + days);
     return d.toISOString().split('T')[0];
   }

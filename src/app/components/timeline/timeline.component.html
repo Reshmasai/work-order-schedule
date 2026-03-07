@@ -1,153 +1,70 @@
 <div class="timeline-page">
-      <div class="page-header">
-        <span class="logo-text">NAOLOGIC</span>
-      </div>
+  <div class="page-header">
+    <span class="logo-text">NAOLOGIC</span>
+  </div>
 
-      <div class="page-content">
-        <h1 class="page-title">Work Orders</h1>
+  <div class="page-content">
+    <h1 class="page-title">Work Orders</h1>
 
-        <!-- Timescale pill — Day / Week / Month switcher -->
-        <div class="timescale-bar">
-          <div class="timescale-pill" #timescalePill>
-            <span class="timescale-label">Timescale</span>
-            <div class="timescale-divider"></div>
-            <div class="timescale-dropdown-wrapper">
-              <ng-select
-                [(ngModel)]="currentView"
-                (ngModelChange)="onViewChange($event)"
-                [clearable]="false"
-                [searchable]="false"
-                class="timescale-select"
-              >
-                @for (opt of viewOptions; track opt.value) {
-                  <ng-option [value]="opt.value">{{ opt.label }}</ng-option>
-                }
-              </ng-select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Main grid: fixed left panel + scrollable right panel -->
-        <div class="timeline-container" #timelineContainer>
-
-          <!-- Left panel: work center labels -->
-          <div class="left-panel">
-            <div class="left-header">Work Center</div>
-            @for (wc of workCenters(); track wc.docId) {
-              <div
-                class="left-row"
-                [class.hovered]="hoveredRow() === wc.docId"
-                (mouseenter)="hoveredRow.set(wc.docId)"
-                (mouseleave)="hoveredRow.set(null)"
-              >{{ wc.data.name }}</div>
+    <!-- Timescale pill - Day / Week / Month switcher -->
+    <div class="timescale-bar">
+      <div class="timescale-pill" #timescalePill>
+        <span class="timescale-label">Timescale</span>
+        <div class="timescale-divider"></div>
+        <div class="timescale-dropdown-wrapper">
+          <ng-select
+            [(ngModel)]="currentView"
+            (ngModelChange)="onViewChange($event)"
+            [clearable]="false"
+            [searchable]="false"
+            class="timescale-select"
+          >
+            @for (opt of viewOptions; track opt.value) {
+              <ng-option [value]="opt.value">{{ opt.label }}</ng-option>
             }
-          </div>
-
-          <!-- Right panel: scrollable timeline grid -->
-          <div class="right-panel" #rightPanel (scroll)="onScroll()">
-
-            <!-- Vertical column separators (rendered behind everything) -->
-            <div class="col-lines" [style.width.px]="totalGridWidth()">
-              @for (col of columns(); track col.date.getTime(); let i = $index) {
-                @if (i > 0) {
-                  <div
-                    class="col-separator"
-                    [class.current-sep]="col.isCurrent"
-                    [style.left.px]="i * columnWidth()"
-                  ></div>
-                }
-              }
-            </div>
-
-            <!-- Column headers row -->
-            <div class="grid-header" [style.width.px]="totalGridWidth()">
-              @for (col of columns(); track col.date.getTime()) {
-                <div
-                  class="col-header"
-                  [class.current]="col.isCurrent"
-                  [style.min-width.px]="columnWidth()"
-                  [style.max-width.px]="columnWidth()"
-                >
-                  <span class="col-label">{{ col.label }}</span>
-                  @if (col.isCurrent) {
-                    <span class="current-badge">{{ currentBadgeLabel() }}</span>
-                  }
-                </div>
-              }
-            </div>
-
-            <!-- One row per work center -->
-            <div class="grid-rows" [style.width.px]="totalGridWidth()">
-              @for (wc of workCenters(); track wc.docId) {
-                <div
-                  class="grid-row"
-                  [class.hovered]="hoveredRow() === wc.docId"
-                  (mouseenter)="onRowMouseEnter($event, wc.docId)"
-                  (mousemove)="onRowMouseMove($event)"
-                  (mouseleave)="hoveredRow.set(null)"
-                  (click)="onRowClick($event, wc.docId)"
-                >
-                  <!-- Ghost indicator shown when hovering an empty column slot -->
-                  @if (hoveredRow() === wc.docId && !isHoveringBar() && !isColumnOccupied(wc.docId)) {
-                    <div
-                      class="ghost-wrapper"
-                      [style.left.px]="ghostLeft()"
-                      [style.width.px]="columnWidth()"
-                    >
-                      <div class="ghost-tooltip">Click to add dates</div>
-                      <div class="ghost-box"></div>
-                    </div>
-                  }
-
-                  <!-- Work order bars for this row -->
-                  @for (bar of getBarsForCenter(wc.docId); track bar.workOrder.docId) {
-                    <div
-                      class="wo-bar"
-                      [class]="'status-' + bar.workOrder.data.status"
-                      [style.left.px]="bar.left"
-                      [style.width.px]="bar.width"
-                      (click)="$event.stopPropagation()"
-                      (mouseenter)="hoveredBar.set(bar.workOrder.docId); barHovered.set(true)"
-                      (mouseleave)="hoveredBar.set(null); barHovered.set(false)"
-                    >
-                      @if (bar.width >= 80) {
-                        <span class="wo-name">{{ bar.workOrder.data.name }}</span>
-                      }
-                      @if (bar.width >= 140) {
-                        <span class="wo-status-badge">{{ getStatusLabel(bar.workOrder.data.status) }}</span>
-                      }
-                      @if (hoveredBar() === bar.workOrder.docId || openMenuId() === bar.workOrder.docId) {
-                        <button
-                          class="wo-menu-btn"
-                          [class.active]="openMenuId() === bar.workOrder.docId"
-                          (click)="toggleMenu($event, bar.workOrder.docId)"
-                        >•••</button>
-                      }
-                    </div>
-
-                    <!-- Dropdown anchored to the right edge of the bar -->
-                    @if (openMenuId() === bar.workOrder.docId) {
-                      <div
-                        class="wo-dropdown"
-                        [style.left.px]="bar.left + bar.width - 41"
-                        (click)="$event.stopPropagation()"
-                      >
-                        <button class="dropdown-item" (click)="onEdit(bar.workOrder, $event)">Edit</button>
-                        <button class="dropdown-item delete" (click)="onDelete(bar.workOrder.docId)">Delete</button>
-                      </div>
-                    }
-                  }
-                </div>
-              }
-            </div>
-          </div>
+          </ng-select>
         </div>
       </div>
     </div>
 
-    <!-- Slide-out panel for create / edit -->
-    <app-work-order-panel
-      [panelMode]="panelMode()"
-      (closed)="closePanel()"
-      (saved)="closePanel()"
-    />
+    <!-- Two-column layout - fixed work-center label strip + scrollable grid -->
+    <div class="timeline-container">
+
+      <!-- Fixed left panel - work center names -->
+      <div class="left-panel">
+        <div class="left-header">Work Center</div>
+        @for (wc of workCenters(); track wc.docId) {
+          <div
+            class="left-row"
+            [class.hovered]="hoveredRow() === wc.docId"
+            (mouseenter)="hoveredRow.set(wc.docId)"
+            (mouseleave)="hoveredRow.set(null)"
+          >{{ wc.data.name }}</div>
+        }
+      </div>
+
+      <!-- Scrollable grid - column headers, rows, bars, ghost placeholder -->
+      <app-timeline-grid
+        #grid
+        [workCenters]="workCenters"
+        [workOrders]="workOrders"
+        [columns]="columns"
+        [columnWidth]="columnWidth"
+        [totalGridWidth]="totalGridWidth"
+        [view]="currentView"
+        [badgeLabel]="currentBadgeLabel()"
+        (createRequest)="onCreateRequest($event)"
+        (editRequest)="onEdit($event)"
+        (deleteRequest)="onDelete($event)"
+      />
+
+    </div>
+  </div>
+</div>
+
+<!-- Slide-out panel for create / edit, rendered outside the grid so it overlays the full page -->
+<app-work-order-panel
+  [panelMode]="panelMode()"
+  (closed)="closePanel()"
+  (saved)="closePanel()"
+/>

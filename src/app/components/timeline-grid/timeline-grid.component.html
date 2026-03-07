@@ -1,0 +1,98 @@
+<div class="right-panel" #rightPanel (scroll)="onScroll()">
+
+  <!-- Vertical column separator lines, rendered behind everything else -->
+  <div class="col-lines" [style.width.px]="totalGridWidth()">
+    @for (col of columns(); track col.date.getTime(); let i = $index) {
+      @if (i > 0) {
+        <div
+          class="col-separator"
+          [class.current-sep]="col.isCurrent"
+          [style.left.px]="i * columnWidth()"
+        ></div>
+      }
+    }
+  </div>
+
+  <!-- Column header row with date labels and current-period badge -->
+  <div class="grid-header" [style.width.px]="totalGridWidth()">
+    @for (col of columns(); track col.date.getTime()) {
+      <div
+        class="col-header"
+        [class.current]="col.isCurrent"
+        [style.min-width.px]="columnWidth()"
+        [style.max-width.px]="columnWidth()"
+      >
+        <span class="col-label">{{ col.label }}</span>
+        @if (col.isCurrent) {
+          <span class="current-badge">{{ badgeLabel }}</span>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- One row per work center containing its bars and the ghost placeholder -->
+  <div class="grid-rows" [style.width.px]="totalGridWidth()">
+    @for (wc of workCenters(); track wc.docId) {
+      <div
+        class="grid-row"
+        [class.hovered]="hoveredRow() === wc.docId"
+        (mouseenter)="onRowMouseEnter($event, wc.docId)"
+        (mousemove)="onRowMouseMove($event)"
+        (mouseleave)="hoveredRow.set(null)"
+        (click)="onRowClick($event, wc.docId)"
+      >
+        <!-- Ghost "Click to add dates" indicator on empty column hover -->
+        @if (hoveredRow() === wc.docId && !isHoveringBar() && !isColumnOccupied(wc.docId)) {
+          <div
+            class="ghost-wrapper"
+            [style.left.px]="ghostLeft()"
+            [style.width.px]="columnWidth()"
+          >
+            <div class="ghost-tooltip">Click to add dates</div>
+            <div class="ghost-box"></div>
+          </div>
+        }
+
+        <!-- Work order bars -->
+        @for (bar of getBarsForCenter(wc.docId); track bar.workOrder.docId) {
+          <div
+            class="wo-bar"
+            [class]="'status-' + bar.workOrder.data.status"
+            [style.left.px]="bar.left"
+            [style.width.px]="bar.width"
+            (click)="$event.stopPropagation()"
+            (mouseenter)="hoveredBar.set(bar.workOrder.docId); barHovered.set(true)"
+            (mouseleave)="hoveredBar.set(null); barHovered.set(false)"
+          >
+            @if (bar.width >= 80) {
+              <span class="wo-name">{{ bar.workOrder.data.name }}</span>
+            }
+            @if (bar.width >= 140) {
+              <span class="wo-status-badge">{{ getStatusLabel(bar.workOrder.data.status) }}</span>
+            }
+            @if (hoveredBar() === bar.workOrder.docId || openMenuId() === bar.workOrder.docId) {
+              <button
+                class="wo-menu-btn"
+                [class.active]="openMenuId() === bar.workOrder.docId"
+                (click)="toggleMenu($event, bar.workOrder.docId)"
+              >•••</button>
+            }
+          </div>
+
+          <!-- Edit / Delete dropdown anchored to the right edge of the bar -->
+          @if (openMenuId() === bar.workOrder.docId) {
+            <div
+              class="wo-dropdown"
+              [style.left.px]="bar.left + bar.width - 41"
+              (click)="$event.stopPropagation()"
+            >
+              <button class="dropdown-item" (click)="onEdit(bar.workOrder, $event)">Edit</button>
+              <button class="dropdown-item delete" (click)="onDelete(bar.workOrder.docId)">Delete</button>
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+
+</div>

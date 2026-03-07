@@ -1,0 +1,109 @@
+<!-- Invisible backdrop — closes panel on outside click -->
+    <div
+      class="panel-backdrop"
+      [class.visible]="panelMode !== null"
+      (click)="onBackdropClick()"
+    ></div>
+
+    <div class="panel" [class.open]="panelMode !== null" role="dialog" aria-modal="true">
+      <div class="panel-inner">
+
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Work Order Details</h2>
+            <p class="panel-subtitle">Specify the dates, name and status for this order</p>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn-cancel" (click)="onCancel()">Cancel</button>
+            <button type="button" class="btn-create" (click)="onSubmit()">
+              {{ panelMode?.mode === 'edit' ? 'Save' : 'Create' }}
+            </button>
+          </div>
+        </div>
+
+        <form [formGroup]="form" class="panel-form" (keydown.escape)="onCancel()">
+
+          <div class="form-field">
+            <label class="field-label">Work Order Name</label>
+            <input
+              type="text"
+              class="field-input"
+              [class.focused]="form.get('name')?.dirty"
+              [class.field-error-border]="form.get('name')?.invalid && form.get('name')?.touched"
+              formControlName="name"
+              placeholder="Acme Inc."
+              autocomplete="off"
+            />
+            @if (form.get('name')?.invalid && form.get('name')?.touched) {
+              <span class="field-error-msg">Work order name is required.</span>
+            }
+          </div>
+
+          <div class="form-field">
+            <label class="field-label">Status</label>
+            <ng-select
+              formControlName="status"
+              [clearable]="false"
+              [searchable]="false"
+              class="status-select"
+              [ngClass]="'status-val-' + selectedStatus()"
+            >
+              @for (opt of statusOptions; track opt.value) {
+                <ng-option [value]="opt.value">{{ opt.label }}</ng-option>
+              }
+            </ng-select>
+          </div>
+
+          <!--
+            ngbDatepicker is placed directly on the visible input.
+            container="body" prevents the popup from being clipped
+            by the panel's overflow:hidden / overflow-y:auto.
+            readonly stops native keyboard input — the picker handles selection.
+          -->
+          <div class="form-field">
+            <label class="field-label">Start date</label>
+            <input
+              class="field-input date-input"
+              placeholder="DD.MM.YYYY"
+              [value]="formatDate(form.get('startDate')?.value)"
+              [class.field-error-border]="form.get('startDate')?.invalid && form.get('startDate')?.touched"
+              readonly
+              ngbDatepicker
+              #startPicker="ngbDatepicker"
+              formControlName="startDate"
+              [autoClose]="true"
+              container="body"
+              (click)="startPicker.toggle()"
+              (dateSelect)="startPicker.close()"
+            />
+          </div>
+
+          <div class="form-field">
+            <label class="field-label">End date</label>
+            <input
+              class="field-input date-input"
+              placeholder="DD.MM.YYYY"
+              [value]="formatDate(form.get('endDate')?.value)"
+              [class.field-error-border]="form.get('endDate')?.invalid && form.get('endDate')?.touched"
+              readonly
+              ngbDatepicker
+              #endPicker="ngbDatepicker"
+              formControlName="endDate"
+              [autoClose]="true"
+              container="body"
+              (click)="endPicker.toggle()"
+              (dateSelect)="endPicker.close()"
+            />
+          </div>
+
+          @if (form.errors?.['endBeforeStart'] && form.touched) {
+            <div class="form-error-banner">End date must be after start date.</div>
+          }
+          @if (overlapError) {
+            <div class="form-error-banner">{{ overlapError }}</div>
+          }
+
+        </form>
+      </div>
+    </div>
+    

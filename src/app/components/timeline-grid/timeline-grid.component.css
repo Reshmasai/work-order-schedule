@@ -1,0 +1,221 @@
+:host { display: flex; flex: 1; overflow: hidden; }
+
+.right-panel {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: #f5f6fa; }
+  &::-webkit-scrollbar-thumb { background: #d0d3e8; border-radius: 3px; }
+}
+
+ /* Vertical grid lines sit behind rows and bars */
+.col-lines {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.col-separator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #e2e5ef;
+  pointer-events: none;
+
+  &.current-sep { width: 2px; background: #c5c7f0; }
+}
+
+/* Sticky header row so column labels stay visible while scrolling vertically */
+.grid-header {
+  display: flex;
+  height: 44px;
+  border-bottom: 1.5px solid #e2e5ef;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 3;
+  overflow: visible;
+}
+
+.col-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.col-label {
+  font-family: "Circular-Std", sans-serif;
+  font-size: 12px;
+  color: #8a8fa8;
+  white-space: nowrap;
+}
+
+/* The "Current month / Current week / Today" pill floats below the column header */
+.current-badge {
+  font-family: "Circular-Std", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #5b5fc7;
+  background: #e8e9fb;
+  padding: 3px 20px;
+  border-radius: 20px;
+  white-space: nowrap;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+}
+
+.grid-rows { position: relative; }
+
+.grid-row {
+  position: relative;
+  height: 52px;
+  cursor: pointer;
+  transition: background 0.12s;
+  overflow: visible;
+
+  &.hovered { background: #f4f5fb; }
+}
+
+/* Ghost placeholder - shown over an empty column slot when hovering */
+.ghost-wrapper {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.ghost-tooltip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  height: 24px;
+  background: #2d3050;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  font-family: "Circular-Std", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  padding: 0 10px;
+}
+
+.ghost-box {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  right: 0;
+  background: #e8e9f8;
+  border-radius: 6px;
+}
+
+/* Work order bar */
+.wo-bar {
+  position: absolute;
+  top: 8px;
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  z-index: 2;
+  cursor: default;
+  overflow: hidden;
+  white-space: nowrap;
+
+  &.status-open,
+  &.status-in-progress { background: #ecedfb; border: 1px solid #c5c7f0; }
+  &.status-complete     { background: #e8f5ec; border: 1px solid #b2dfc0; }
+  &.status-blocked      { background: #fef6e4; border: 1px solid #f5d57a; }
+}
+
+.wo-name {
+  font-family: "Circular-Std", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #3a3d52;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.wo-status-badge {
+  font-family: "Circular-Std", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: 20px;
+  flex-shrink: 0;
+
+  .status-open &,
+  .status-in-progress & { color: #5b5fc7; background: #dddff7; }
+  .status-complete &    { color: #276749; background: #c6f6d5; }
+  .status-blocked &     { color: #92400e; background: #fde68a; }
+}
+
+.wo-menu-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #e2e5ef;
+  border-radius: 5px;
+  padding: 3px 8px;
+  cursor: pointer;
+  color: #5b6078;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: background 0.13s, border-color 0.13s;
+
+  &:hover  { background: #f0f1f8; border-color: #c5c7f0; }
+  &.active { background: #e2e4f0; border-color: #aeb1d6; }
+}
+
+/* Three-dot dropdown menu */
+.wo-dropdown {
+  position: absolute;
+  top: 42px;
+  background: #fff;
+  border: 1.5px solid #e2e5ef;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.15);
+  z-index: 9999;
+  min-width: 180px;
+  padding: 4px 0;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  font-family: "Circular-Std", sans-serif;
+  font-size: 13px;
+  color: #3a3d52;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 10px 18px;
+  cursor: pointer;
+
+  &:hover  { background: #f5f6fa; }
+  &.delete { color: #5b5fc7; }
+}

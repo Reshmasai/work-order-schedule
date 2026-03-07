@@ -1,52 +1,235 @@
-/* Import Circular Std font */
+// Design tokens — single source of truth for
+// colours, radii and shadows used site-wide.
+// Update here, everything inherits automatically.
+
+// Brand
+$color-primary:        #5b5fc7;
+$color-primary-dark:   #4a4eb8;
+$color-primary-light:  #ecedfb;
+$color-primary-border: #c5c7f0;
+
+// Neutrals
+$color-text-primary:   #1a1a2e;
+$color-text-secondary: #3a3d52;
+$color-text-muted:     #8a8fa8;
+$color-text-placeholder: #c0c3d4;
+
+// Surfaces
+$color-bg-page:        #f8f9fc;
+$color-bg-white:       #fff;
+$color-bg-subtle:      #f4f5fb;
+$color-bg-input:       #f5f6fa;
+
+// Borders
+$color-border:         #e2e5ef;
+$color-border-light:   #f0f1f8;
+
+// Status colours
+$color-status-open-bg:        #ecedfb;
+$color-status-open-border:    #c5c7f0;
+$color-status-complete-bg:    #e8f5ec;
+$color-status-complete-border:#b2dfc0;
+$color-status-blocked-bg:     #fef6e4;
+$color-status-blocked-border: #f5d57a;
+
+// Feedback
+$color-error:          #e53e3e;
+$color-error-bg:       #fff5f5;
+$color-error-border:   #fed7d7;
+
+// Typography
+$font-family:          "Circular-Std", sans-serif;
+
+// Radii
+$radius-sm:  6px;
+$radius-md:  8px;
+$radius-lg:  10px;
+
+// Shadows
+$shadow-sm:  0 2px 8px rgba(0,0,0,0.08);
+$shadow-md:  0 4px 16px rgba(0,0,0,0.10);
+$shadow-lg:  0 8px 28px rgba(0,0,0,0.13);
+$shadow-panel: -4px 0 32px rgba(0,0,0,0.12);
+
+
+// Global reset & base
 @import url('https://naologic-com-assets.naologic.com/fonts/circular-std/circular-std.css');
 
-/* ng-select base styles */
-@import "@ng-select/ng-select/themes/default.theme.css";
-
-/* ng-bootstrap - no global CSS needed for this component set */
-
-/* ─── Reset & Base ─── */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+*, *::before, *::after { box-sizing: border-box; }
 
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: "Circular-Std", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f8f9fc;
-  color: #1a1a2e;
+  font-family: $font-family;
+  background: $color-bg-page;
+  color: $color-text-primary;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Scrollbar Styling ─── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
 
-::-webkit-scrollbar-track {
-  background: #f5f6fa;
-}
+// Scrollbar — applied globally
 
-::-webkit-scrollbar-thumb {
-  background: #d0d3e8;
-  border-radius: 3px;
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: $color-bg-input; }
+::-webkit-scrollbar-thumb { background: $color-primary-border; border-radius: 3px; }
 
-  &:hover {
-    background: #b8bbda;
+
+// ng-select base theme
+// Replaces the default theme.css import so we
+// can keep colours consistent with the design.
+
+
+.ng-select { position: relative; display: block; }
+.ng-select * { box-sizing: border-box; }
+
+.ng-select .ng-select-container {
+  cursor: pointer;
+  display: flex;
+  outline: none;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+
+  .ng-value-container {
+    display: flex;
+    flex: 1;
+    align-items: center;
+
+    .ng-input { opacity: 0; position: absolute; }
   }
 }
 
-/* ─── Global ng-select overrides ─── */
-.ng-select.ng-select-single .ng-select-container {
-  height: auto;
-  min-height: 36px;
+.ng-select.ng-select-single .ng-select-container { height: 36px; }
+
+.ng-select .ng-arrow-wrapper {
+  cursor: pointer;
+  position: relative;
+
+  .ng-arrow {
+    border-color: #888 transparent transparent;
+    border-style: solid;
+    border-width: 5px 5px 2.5px;
+    display: inline-block;
+    height: 0;
+    width: 0;
+  }
 }
 
-.ng-select .ng-select-container .ng-value-container .ng-input > input {
-  font-family: "Circular-Std", sans-serif;
+.ng-select.ng-select-opened .ng-arrow-wrapper .ng-arrow {
+  border-color: transparent transparent #888;
+  border-width: 0 5px 5px;
+}
+
+.ng-select .ng-clear-wrapper { color: #999; cursor: pointer; }
+
+.ng-dropdown-panel {
+  background: $color-bg-white;
+  left: 0;
+  position: absolute;
+  width: 100%;
+  z-index: 9999;
+  box-shadow: $shadow-md;
+  border: 1.5px solid $color-border;
+  border-radius: $radius-md;
+  margin-top: 4px;
+  overflow: hidden;
+
+  .ng-dropdown-panel-items { overflow-y: auto; }
+
+  .ng-dropdown-panel-items .ng-option {
+    background: $color-bg-white;
+    color: $color-text-secondary;
+    cursor: pointer;
+    display: block;
+    font-family: $font-family;
+    font-size: 14px;
+    padding: 11px 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &.ng-option-marked   { background: $color-bg-input; color: $color-text-secondary; }
+    // Selected = brand text, no grey highlight
+    &.ng-option-selected { background: $color-bg-white; color: $color-primary; font-weight: 600; }
+    &.ng-option-selected.ng-option-marked { background: $color-bg-input; color: $color-primary; }
+    &.ng-option-disabled { color: $color-text-placeholder; cursor: not-allowed; }
+  }
+}
+
+
+// ngb-datepicker popup
+// Must be global because container="body" teleports
+// the popup outside any component style scope.
+
+ngb-datepicker {
+  background: #fff !important;
+  border: 1.5px solid #e2e5ef !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.13) !important;
+  padding: 8px !important;
+  z-index: 10000 !important;
+}
+
+.ngb-dp-month {
+  background: #fff !important;
+}
+
+.ngb-dp-header {
+  background: #fff !important;
+  border-bottom: 1px solid #f0f1f8 !important;
+  padding: 6px 0 10px !important;
+}
+
+.ngb-dp-week {
+  background: #fff !important;
+}
+
+.ngb-dp-weekdays {
+  background: #fff !important;
+  border-bottom: 1px solid #f0f1f8 !important;
+}
+
+.ngb-dp-weekday {
+  font-family: "Circular-Std", sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #8a8fa8 !important;
+}
+
+.ngb-dp-navigation-chevron {
+  color: #5b5fc7 !important;
+}
+
+ngb-datepicker-navigation-select select {
+  font-family: "Circular-Std", sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #1a1a2e !important;
+  background: #fff !important;
+  border: 1.5px solid #e2e5ef !important;
+  border-radius: 6px !important;
+  padding: 2px 6px !important;
+}
+
+.ngb-dp-day .btn-light {
+  font-family: "Circular-Std", sans-serif !important;
+  font-size: 13px !important;
+  color: #3a3d52 !important;
+  background: #fff !important;
+  border-radius: 6px !important;
+
+  &:hover {
+    background: #ecedfb !important;
+    color: #5b5fc7 !important;
+  }
+}
+
+.ngb-dp-day .bg-primary {
+  background-color: #5b5fc7 !important;
+  border-radius: 6px !important;
+}
+
+.ngb-dp-day.disabled .btn-light {
+  color: #c0c3d4 !important;
 }
