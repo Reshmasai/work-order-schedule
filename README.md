@@ -1,116 +1,75 @@
-# Naologic Work Order Schedule Timeline
+# Naologic — Work Order Schedule Timeline
 
-An interactive timeline component for visualizing and managing work orders across work centers in a manufacturing ERP system.
+An Angular 17 application for visualising and managing work orders across multiple work centres on an interactive Gantt-style timeline.
 
-## 🚀 Getting Started
+---
 
-### Prerequisites
-- Node.js 18+
-- npm 9+
+## Getting Started
 
-### Installation
+**Prerequisites:** Node.js 18+ and Angular CLI 17 installed globally.
 
 ```bash
+# Install Angular CLI if you haven't already
+npm install -g @angular/cli
+
+# Install dependencies
 npm install
-```
 
-### Running the App
-
-```bash
+# Start the development server
 ng serve
-# or
-npm start
 ```
 
-Navigate to `http://localhost:4200`.
+Navigate to `http://localhost:4200`. The application will reload automatically on any source file change.
 
 ---
 
-## ✅ Features Implemented
+## Approach
 
-### Core
-- **Timeline grid** with Day / Week / Month zoom levels (Hour included as bonus)
-- **Work order bars** positioned accurately by date with status color coding
-- **Create panel** — click any empty row area → slide-out form prefills start date
-- **Edit panel** — three-dot menu → Edit → form prefilled with existing data
-- **Delete** — three-dot menu → Delete removes the work order
-- **Overlap detection** — error shown, save blocked if orders overlap on same work center
-- **Form validation** — required fields, end date must be after start date
-- **Today indicator** — vertical line on current date
-- **Current period badge** — "Current month / week / Today" label in header
-- **Hover states** — row highlight on hover, "Click to add dates" tooltip
-- **Three-dot menu** — appears on bar hover, opens Edit/Delete dropdown
+The goal was to build a production-representative scheduling interface — not just a functional prototype. Every architectural decision was made with that bar in mind.
 
-### Bonus
-- **localStorage persistence** — work orders survive page refresh
-- **Panel animation** — smooth slide-in/out transition
-- **Keyboard support** — Escape closes panel
-- **Today auto-scroll** — timeline centers on today on load
+### Signal-first state management
+
+The application uses Angular 17's signals API (`signal`, `computed`, `effect`) exclusively for reactive state — no RxJS `Subject` or `BehaviorSubject`. The `TimelineService` holds the source-of-truth signals for work centres and work orders and exposes them as read-only via `asReadonly()`, so components can consume state but never reach in and mutate it directly. Derived values like the column array and total grid pixel width are `computed()` signals, meaning they recalculate automatically and precisely when their dependencies change.
+
+### Container / presenter component split
+
+The timeline UI is split into two components with explicit ownership boundaries:
+
+- **`TimelineComponent`** is the page shell. It owns the timescale pill, the fixed left-panel label strip, and all column/date arithmetic. It passes `Signal<T>` inputs down to the grid and receives typed `EventEmitter` outputs back up.
+- **`TimelineGridComponent`** owns everything inside the scrollable grid — column headers, row backgrounds, bar rendering, the ghost placeholder, and the three-dot dropdown menu. It has no direct service injection; all data arrives via inputs, all mutations leave via outputs. This makes it fully portable and independently testable.
+
+Communication between the two components flows in one direction for data, and back up through typed outputs for user actions.
+
+### Bar positioning
+
+Work order bars are positioned using a proportional pixel formula:
+
+```
+left  = ((clampedStart − rangeStart) / totalRangeMs) × totalGridPx
+width = ((clampedEnd   − clampedStart) / totalRangeMs) × totalGridPx
+```
+
+Bars that begin before the visible grid are clamped to `left = 0` rather than discarded. Bars narrower than 4px are dropped since they are impossible to interact with. All date arithmetic normalises to midnight before computing millisecond offsets to avoid time-of-day drift corrupting positions.
+
+### Reactive form with cross-field validation
+
+The work order panel uses a `ReactiveFormsModule` `FormGroup` with a group-level `endAfterStart` validator rather than field-level validators, since the validity of each date field depends on the other. Dates are stored internally as `NgbDateStruct` and only converted to ISO strings at the service boundary. The overlap check is a separate method on the service — decoupled from the mutation methods — so the form can call it on submit without committing a change.
+
+### OnPush everywhere
+
+All three components use `ChangeDetectionStrategy.OnPush`. Because state flows through signals, Angular's signal graph handles re-render scheduling automatically with no manual `markForCheck()` calls needed.
+
+### Persistence
+
+Work order state is persisted to `localStorage` on every mutation so the board survives a page refresh.
 
 ---
 
-## 🏗 Architecture
+## Libraries Used
 
-```
-src/app/
-├── models/
-│   ├── timeline.models.ts     # TypeScript interfaces & types
-│   └── sample-data.ts         # Hardcoded sample data (5 WCs, 8+ WOs)
-├── services/
-│   └── timeline.service.ts    # Signal-based state management
-└── components/
-    ├── timeline/
-    │   └── timeline.component.ts   # Main timeline grid
-    └── work-order-panel/
-        └── work-order-panel.component.ts  # Slide-out create/edit panel
-```
+| Library | Version | Why |
+|---|---|---|
+| **@ng-bootstrap/ng-bootstrap** | ^16.0.0 | Provides the `NgbDatepicker` component used in the work order panel. Its `NgbDateStruct` type is a plain object (`{ year, month, day }`) with no Date prototype baggage, which makes form validation and serialisation straightforward. `container="body"` support allows the popup to escape overflow-hidden containers without clipping. |
+| **@ng-select/ng-select** | ^12.0.0 | Used for the timescale view switcher pill and the status dropdown in the work order panel. Chosen over a native `<select>` because it supports fully custom option and label templates, allowing the coloured status badge to render inside the input field as well as in the dropdown list. |
+| **@angular/forms** | ^17.3.0 | `ReactiveFormsModule` powers the work order panel form with typed `FormGroup`, cross-field group validators, and `form.setErrors()` for surfacing service-level overlap errors back into the form model. |
 
-### Key Design Decisions
-
-- **Angular Signals** for reactive state — avoids NgRx overhead for this scope
-- **Computed columns** — rebuilds timeline columns whenever view or anchor changes
-- **Pixel positioning** — work order bars use absolute `left` + `width` in pixels, calculated from date range proportions
-- **Single panel component** — shared for create and edit modes via `PanelMode` input
-- **Overlap check** — server-side-style validation in the service layer
-- **OnPush change detection** — for performance across all components
-
-### Date Positioning Logic
-
-```
-left (px) = ((startDate - rangeStart) / totalRangeMs) * totalGridPx
-width (px) = ((endDate - startDate) / totalRangeMs) * totalGridPx
-```
-
----
-
-## 🛠 Libraries Used
-
-| Library | Reason |
-|---------|--------|
-| `@ng-select/ng-select` | Required — dropdowns (timescale, status) |
-| `@ng-bootstrap/ng-bootstrap` | Required — date utilities |
-| Angular Reactive Forms | Required — form validation |
-| Angular Signals | State management (built-in Angular 17+) |
-
----
-
-## 📁 Sample Data
-
-- **5 work centers**: Genesis Hardware, Rodriques Electrics, Konsulting Inc, McMarrow Distribution, Spartan Manufacturing
-- **8 work orders** spanning all 4 statuses (Open, In Progress, Complete, Blocked)
-- Konsulting Inc and Spartan Manufacturing each have 2 non-overlapping orders
-
----
-
-## 🗂 Commit History
-
-1. `init: scaffold Angular 17 project`
-2. `feat: add data models and sample data`  
-3. `feat: add timeline service with signal-based state`
-4. `feat: build main timeline grid component`
-5. `feat: build work order slide-out panel`
-6. `feat: wire up create, edit, delete flows`
-7. `feat: add overlap detection and form validation`
-8. `feat: add localStorage persistence (bonus)`
-9. `style: pixel-perfect design pass matching Sketch`
-10. `docs: add README`
