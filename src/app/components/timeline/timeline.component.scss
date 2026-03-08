@@ -1,21 +1,15 @@
 // Host & page layout
-:host { display: block; min-height: 100vh; background: #f8f9fc; }
+:host { display: block; min-height: 100vh; background: #ffffff; }
 
 .page-header {
-  padding: 16px 24px;
+  padding: 20px 20px;
+  margin-left: 85px;
   background: #fff;
-  border-bottom: 1px solid #f0f1f8;
 }
 
-.logo-text {
-  font-family: "Circular-Std", sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: #5b5fc7;
-}
+.logo-img { height: 10px; width: 80px; display: block; }
 
-.page-content { padding: 32px 40px 40px; }
+.page-content { padding: 45px 40px 40px 101px; }
 
 .page-title {
   font-family: "Circular-Std", sans-serif;
@@ -33,7 +27,7 @@
   align-items: center;
   border-radius: 8px;
   background: #fff;
-  height: 36px;
+  height: 25px;
   overflow: visible;
   position: relative;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -42,25 +36,27 @@
 .timescale-label {
   font-family: "Circular-Std", sans-serif;
   font-size: 13px;
-  color: #8a8fa8;
-  padding: 0 14px;
+  color: #687196;
+  padding: 0 10px;
   white-space: nowrap;
-  background: #f5f6fa;
+  background: #f1f3f8;
   height: 100%;
   display: flex;
   align-items: center;
-  border-radius: 8px 0 0 8px;
+  border-radius: 5px 0 0 5px;
+  font-weight: 500;
 }
 
 .timescale-divider { display: none; }
 
 .timescale-dropdown-wrapper {
-  min-width: 100px;
+  width: 75px;
   background: #fff;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 5px 5px 0;
 }
 
 ::ng-deep .timescale-select {
+  min-height: 25px !important; height: 25px !important;
   .ng-select-container {
     font-family: "Circular-Std", sans-serif !important;
     font-size: 13px !important;
@@ -71,55 +67,60 @@
     box-shadow: none !important;
     background: transparent !important;
     cursor: pointer;
+    min-height: 25px !important; 
+    height: 25px !important; 
+    align-items: center !important;
   }
-  .ng-value-container { padding: 0 0 0 12px !important; }
-  .ng-value { color: #5b5fc7 !important; font-weight: 500 !important; }
+  .ng-value-container { padding: 0 0 0 10px !important; display: flex !important; align-items: center !important; height: 100% !important; }
+  .ng-value { color: #3E40DB !important; font-weight: 600 !important; }
   .ng-arrow { display: none !important; }
   .ng-arrow-wrapper {
-    padding: 0 10px 0 2px !important;
+    padding: 0 10px 0 0 !important;
     display: flex !important;
+    height: 100% !important;
     align-items: center !important;
     &::after {
       content: '';
       display: block;
       width: 6px;
       height: 6px;
-      border-right: 2px solid #5b5fc7;
-      border-bottom: 2px solid #5b5fc7;
+      border-right: 1.5px solid #7b7b7b;
+      border-bottom: 1.5px solid #7b7b7b;
       transform: rotate(45deg);
       margin-top: -3px;
     }
   }
   .ng-dropdown-panel {
-    border: 1.5px solid #e2e5ef !important;
+    border: 1.5px solid #e6ebf0 !important;
     border-radius: 8px !important;
     box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
     margin-top: 6px !important;
-    min-width: 260px !important;
-    left: -90px !important;
+    width: 200px !important;
+    max-height: 126px;
+    left: -80px !important;
     z-index: 9999 !important;
     overflow: hidden !important;
-    padding: 6px 0 !important;
+    padding: 12px 12px !important;
   }
   .ng-option {
     font-family: "Circular-Std", sans-serif !important;
     font-size: 13px !important;
-    padding: 10px 16px !important;
+    padding: 5px 0 !important;
     color: #3a3d52 !important;
     background: #fff !important;
 
     &.ng-option-selected { color: #5b5fc7 !important; font-weight: 500 !important; background: #fff !important; }
     &.ng-option-marked   { background: #fff !important; color: #3a3d52 !important; }
-    &.ng-option-selected.ng-option-marked { background: #fff !important; color: #5b5fc7 !important; }
+    &.ng-option-selected.ng-option-marked { background: #fff !important; color: #3e40db !important; }
   }
 }
 
 // Two-column layout wrapper
 .timeline-container {
   display: flex;
-  border: 1.5px solid #e2e5ef;
+  border: 1.5px solid #e6ebf0;
   border-radius: 8px;
-  background: #fff;
+  background: #f7f9fc;
   overflow: hidden;
   position: relative;
   min-height: 600px;
@@ -128,34 +129,35 @@
 // Fixed left panel: work center label strip
 .left-panel {
   flex-shrink: 0;
-  width: 220px;
-  border-right: 1.5px solid #e2e5ef;
+  width: 380px;
+  border-right: 1.5px solid #e6ebf0;
   z-index: 2;
   background: #fff;
 }
 
 .left-header {
   font-family: "Circular-Std", sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
-  color: #8a8fa8;
+  color: #687196;
   padding: 0 16px;
-  height: 44px;
+  height: 30px;
   display: flex;
   align-items: center;
-  border-bottom: 1.5px solid #e2e5ef;
+  border-bottom: 1.5px solid #e6ebf0;
   box-sizing: border-box;
 }
 
 .left-row {
   font-family: "Circular-Std", sans-serif;
-  font-size: 13px;
-  color: #3a3d52;
+  font-size: 14px;
+  font-weight: 500;
+  color: #030929;
   padding: 0 16px;
-  height: 52px;
+  height: 48px;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #e2e5ef;
+  border-bottom: 1px solid #e6ebf0;
   transition: background 0.12s;
   box-sizing: border-box;
 

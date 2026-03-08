@@ -139,23 +139,34 @@ export class TimelineComponent implements OnInit, AfterViewInit {
    * Computes the anchor (leftmost column) date for the current view so that
    * today ends up roughly centred in the visible grid area.
    *
-   * Day:   start 14 days before today
-   * Week:  start 8 weeks before the current week's Sunday
-   * Month: start 3 months before the current calendar month
+   * Day view   (30 cols): anchor = 14 days before today, putting today at col 14 of 30
+   * Week view  (20 cols): anchor = 8 weeks before the start of the current week,
+   *                       putting the current week at col 8 of 20
+   * Month view (14 cols): anchor = 3 months before the current month,
+   *                       putting the current month at col 3 of 14
    */
   private computeAnchor(): Date {
     const today = new Date();
+    // Strip the time portion so all comparisons are midnight-to-midnight
     today.setHours(0, 0, 0, 0);
 
     switch (this.currentView) {
+      // Date constructor accepts negative month values and rolls back the year automatically,
+      // so passing getMonth() - 3 is safe even in January (gives October of the prior year).
+      // Passing day=1 ensures we always land on the 1st of the month, not a mid-month date.
       case 'month': return new Date(today.getFullYear(), today.getMonth() - 3, 1);
+
       case 'week': {
         const d = new Date(today);
+        // getDay() returns 0 (Sun) through 6 (Sat), so subtracting it snaps back to Sunday.
+        // An extra 56 days (8 weeks * 7) shifts the anchor 8 full weeks before that Sunday.
         d.setDate(d.getDate() - d.getDay() - 56);
         return d;
       }
+
       case 'day': {
         const d = new Date(today);
+        // 14 days back puts today at roughly the centre of the 30-column day view
         d.setDate(d.getDate() - 14);
         return d;
       }
@@ -163,12 +174,16 @@ export class TimelineComponent implements OnInit, AfterViewInit {
   }
 
   // Generates the column descriptor array that drives both the grid header
-  // and the bar pixel-position calculations in the grid component
+  // and the bar pixel-position calculations in the grid component.
+  // Each entry carries a Date, a display label, and two boolean flags so the
+  // template can highlight the current period without recalculating in the HTML.
   private buildColumns(anchor: Date, count: number, view: TimescaleView): TimelineColumn[] {
     const today = new Date();
+    // Strip time so isSameDay comparisons don't fail on the current day
     today.setHours(0, 0, 0, 0);
 
     return Array.from({ length: count }, (_, i) => {
+      // addPeriodN advances the anchor by i periods (days/weeks/months) per view
       const date = this.addPeriodN(anchor, view, i);
       return {
         date,
@@ -179,6 +194,10 @@ export class TimelineComponent implements OnInit, AfterViewInit {
     });
   }
 
+  // Produces the short string shown in each column header.
+  // Day and week views both use "Mar 5" style — weeks show the start-of-week date,
+  // which is enough context for the user to orient themselves without taking up space.
+  // Month view adds the year so multi-year grids are unambiguous (e.g. "Jan 2026").
   private formatColumnLabel(d: Date, v: TimescaleView): string {
     switch (v) {
       case 'month': return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -187,35 +206,57 @@ export class TimelineComponent implements OnInit, AfterViewInit {
     }
   }
 
+  // Decides whether a given column date falls inside the "current" period —
+  // i.e. whether it should receive the accent colour and the floating badge.
+  // The definition of "current" differs per view:
+  //   Day:   the column whose date is today
+  //   Week:  the column whose date is the Sunday that started the current week
+  //   Month: any column whose year+month matches today's year+month
   private isCurrentPeriod(d: Date, v: TimescaleView, today: Date): boolean {
     switch (v) {
+      // Both year and month must match — otherwise "Mar 2025" and "Mar 2026" look the same
       case 'month': return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+
       case 'week': {
+        // Roll today back to the start of its week (Sunday = day 0) at midnight,
+        // then compare that Sunday to the column date
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - today.getDay());
         weekStart.setHours(0, 0, 0, 0);
         return this.isSameDay(d, weekStart);
       }
+
       case 'day': return this.isSameDay(d, today);
     }
   }
 
+  // Advances a base date by n periods according to the active view.
+  // Used by buildColumns to step from the anchor date to each column's date.
+  // setMonth() handles year rollovers automatically (month 13 -> Jan of next year).
   private addPeriodN(base: Date, v: TimescaleView, n: number): Date {
+    // Always clone — never mutate the anchor date stored in the signal
     const d = new Date(base);
     switch (v) {
       case 'month': d.setMonth(d.getMonth() + n); break;
-      case 'week':  d.setDate(d.getDate() + n * 7); break;
+      case 'week':  d.setDate(d.getDate() + n * 7); break; // 1 week = 7 days
       case 'day':   d.setDate(d.getDate() + n); break;
     }
     return d;
   }
 
+  // Compares two Date objects by calendar day only, ignoring hours/minutes/seconds.
+  // We can't use getTime() equality because two dates on the same calendar day
+  // will have different timestamps if one was created with setHours(0,0,0,0) and
+  // the other wasn't (e.g. a Date from new Date() includes the current time).
   private isSameDay(a: Date, b: Date): boolean {
     return a.getDate()     === b.getDate()
         && a.getMonth()    === b.getMonth()
         && a.getFullYear() === b.getFullYear();
   }
 
+  // Reads the width and count pair for the active view and pushes them into their
+  // respective signals. Grouping width and count in COLUMN_CONFIG means they can
+  // never get out of sync — changing the view always updates both in one call.
   private applyColumnConfig(): void {
     const { width, count } = this.COLUMN_CONFIG[this.currentView];
     this.columnWidth.set(width);

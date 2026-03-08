@@ -204,43 +204,67 @@ export class TimelineGridComponent implements AfterViewInit, OnDestroy {
     totalMs: number,
     totalPx: number
   ): WorkOrderBar | null {
-    // Normalise to midnight to avoid timezone-related off-by-one errors
+    // Parse ISO strings and normalise to midnight so the timestamp arithmetic below
+    // isn't skewed by whatever time-of-day the dates were created with.
+    // Without this, a bar created at 15:00 on day X would appear slightly to the
+    // right of a bar created at 00:00 on the same day.
     const s = new Date(wo.data.startDate); s.setHours(0, 0, 0, 0);
     const e = new Date(wo.data.endDate);   e.setHours(0, 0, 0, 0);
 
+    // Guard against malformed date strings stored in the work order
     if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
 
-    // Clamp to the visible range so bars starting before the grid still render from the left edge
+    // Clamp the bar's edges to the visible grid range.
+    // Math.max on the start prevents the left edge from going negative (bar started
+    // before the first column). Math.min on the end prevents overflow on the right.
+    // If the clamped start >= clamped end the bar is entirely off-screen, so skip it.
     const clippedS = Math.max(s.getTime(), rangeStart.getTime());
     const clippedE = Math.min(e.getTime(), rangeEnd.getTime());
     if (clippedS >= clippedE) return null;
 
+    // Convert millisecond offsets into pixel positions using a simple proportion:
+    //   left  = (how far the bar starts past the grid start) / (total grid time) * (total grid px)
+    //   width = (how long the bar is in ms) / (total grid time) * (total grid px)
+    // This is the same formula used in virtually every timeline/Gantt renderer.
     const left  = ((clippedS - rangeStart.getTime()) / totalMs) * totalPx;
     const width = ((clippedE - clippedS) / totalMs) * totalPx;
 
-    // Discard slivers that are too narrow to see or click on
+    // A bar narrower than 4px is invisible at normal zoom and impossible to click,
+    // so we drop it rather than render a hairline that confuses the user
     if (width < 4) return null;
 
     return { workOrder: wo, left, width };
   }
 
-  // Derives the shared time and pixel metrics for the whole visible grid.
-  // rangeEnd is one full period after the last column's start date.
+  // Computes the four shared metrics that toBar() needs for every bar in a row.
+  // Extracting them here means we only do the arithmetic once per row render,
+  // not once per bar.
+  //
+  // rangeStart: the Date of the very first column (leftmost pixel = 0)
+  // rangeEnd:   one full period past the last column's start date — this is the
+  //             exclusive right boundary of the grid (last column's end, not start)
+  // totalMs:    the grid's full time span in milliseconds — the denominator in the
+  //             proportion formula used in toBar()
+  // totalPx:    the grid's full pixel width — the numerator scalar in that formula
   private getGridRange(cols: TimelineColumn[]) {
     const colW       = this.columnWidth();
     const rangeStart = cols[0].date;
+    // addOnePeriod moves past the last column's start to get its end boundary.
+    // e.g. for day view, if the last column is Mar 30, rangeEnd = Mar 31 00:00.
     const rangeEnd   = this.addOnePeriod(cols[cols.length - 1].date);
     const totalMs    = rangeEnd.getTime() - rangeStart.getTime();
     const totalPx    = cols.length * colW;
     return { rangeStart, rangeEnd, totalMs, totalPx };
   }
 
-  // Advances a date by one period based on the current view
+  // Advances a date by exactly one period for the active view.
+  // This gives us the exclusive end boundary of the last column in getGridRange.
+  // Always clones the input — mutating a column's date would corrupt the columns signal.
   private addOnePeriod(d: Date): Date {
     const result = new Date(d);
     switch (this.view) {
-      case 'month': result.setMonth(result.getMonth() + 1); break;
-      case 'week':  result.setDate(result.getDate() + 7);   break;
+      case 'month': result.setMonth(result.getMonth() + 1); break; // JS handles Dec+1 -> Jan next year
+      case 'week':  result.setDate(result.getDate() + 7);   break; // 1 week = exactly 7 days
       case 'day':   result.setDate(result.getDate() + 1);   break;
     }
     return result;

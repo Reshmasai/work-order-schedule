@@ -34,8 +34,8 @@
 /* Sticky header row so column labels stay visible while scrolling vertically */
 .grid-header {
   display: flex;
-  height: 44px;
-  border-bottom: 1.5px solid #e2e5ef;
+  height: 30px;
+  border-bottom: 1.5px solid #e6ebf0;
   position: sticky;
   top: 0;
   background: #fff;
@@ -54,9 +54,10 @@
 
 .col-label {
   font-family: "Circular-Std", sans-serif;
-  font-size: 12px;
-  color: #8a8fa8;
+  font-size: 14px;
+  color: #687196;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 /* The "Current month / Current week / Today" pill floats below the column header */
@@ -64,10 +65,10 @@
   font-family: "Circular-Std", sans-serif;
   font-size: 11px;
   font-weight: 500;
-  color: #5b5fc7;
-  background: #e8e9fb;
+  color: #3e40db;
+  background: #d4d7ff;
   padding: 3px 20px;
-  border-radius: 20px;
+  border-radius: 5px;
   white-space: nowrap;
   position: absolute;
   top: 100%;
@@ -79,12 +80,12 @@
 
 .grid-row {
   position: relative;
-  height: 52px;
+  height: 48px;
   cursor: pointer;
   transition: background 0.12s;
   overflow: visible;
 
-  &.hovered { background: #f4f5fb; }
+  &.hovered { background: #eef0ff; }
 }
 
 /* Ghost placeholder - shown over an empty column slot when hovering */
@@ -103,14 +104,14 @@
   left: 50%;
   transform: translateX(-50%);
   height: 24px;
-  background: #2d3050;
-  border-radius: 6px;
+  background: #687196;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   font-family: "Circular-Std", sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  color: #fff;
+  font-size: 14px;
+  font-weight: 400;
+  color: #f9faff;
   white-space: nowrap;
   padding: 0 10px;
 }
@@ -121,36 +122,46 @@
   bottom: 6px;
   left: 0;
   right: 0;
-  background: #e8e9f8;
+  background: #c3c7ff;
   border-radius: 6px;
 }
 
 /* Work order bar */
 .wo-bar {
   position: absolute;
-  top: 8px;
+  top: 6px;
   height: 36px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   padding: 0 8px;
-  gap: 6px;
+  gap: 0;
+  justify-content: space-between;
   z-index: 2;
   cursor: default;
-  overflow: hidden;
+  overflow: visible;
   white-space: nowrap;
 
-  &.status-open,
-  &.status-in-progress { background: #ecedfb; border: 1px solid #c5c7f0; }
-  &.status-complete     { background: #e8f5ec; border: 1px solid #b2dfc0; }
-  &.status-blocked      { background: #fef6e4; border: 1px solid #f5d57a; }
+  &.status-open { background: #f2feff; border: 1px solid #cefbff; }
+  &.status-in-progress { background: #edeeff; border: 1px solid #dee0ff; }
+  &.status-complete     { background: #f8fff3; border: 1px solid #d1fab3; }
+  &.status-blocked      { background: #fffcf1; border: 1px solid #fff5cf; }
+}
+.wo-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 120px;
+  justify-content: flex-end;
 }
 
 .wo-name {
-  font-family: "Circular-Std", sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  color: #3a3d52;
+  font-family: "Circular-Std";
+  font-size: 14px;
+  font-weight: 400;
+  color: #030929;
   overflow: hidden;
   text-overflow: ellipsis;
   flex-shrink: 1;
@@ -159,49 +170,53 @@
 
 .wo-status-badge {
   font-family: "Circular-Std", sans-serif;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
-  padding: 2px 9px;
-  border-radius: 20px;
+  padding: 2px 8px;
+  border-radius: 5px;
   flex-shrink: 0;
 
-  .status-open &,
-  .status-in-progress & { color: #5b5fc7; background: #dddff7; }
-  .status-complete &    { color: #276749; background: #c6f6d5; }
-  .status-blocked &     { color: #92400e; background: #fde68a; }
+  .status-open & { color: #00b0bf; background: #e4fdff; }
+  .status-in-progress & { color: #3e40db; background: #d6d8ff; }
+  .status-complete &    { color: #08a268; background: #e1ffcc; }
+  .status-blocked &     { color: #b13600; background: #fceeb5; }
 }
 
 .wo-menu-btn {
-  margin-left: auto;
+  margin-left: 0;
   flex-shrink: 0;
-  background: #fff;
-  border: 1px solid #e2e5ef;
+  background: #f1f3f8;
+  border: 1px solid #e6ebf0;
   border-radius: 5px;
   padding: 3px 8px;
   cursor: pointer;
-  color: #5b6078;
+  color: #687196;
   font-size: 12px;
   letter-spacing: 1.5px;
   line-height: 1;
   display: flex;
+  visibility: hidden;
   align-items: center;
   transition: background 0.13s, border-color 0.13s;
 
-  &:hover  { background: #f0f1f8; border-color: #c5c7f0; }
-  &.active { background: #e2e4f0; border-color: #aeb1d6; }
+  &:hover  { background: #f1f3f8; border-color: #c5c7f0; }
+  &.active { background: #d8dceb; border-color: #aeb1d6; visibility: visible; }
 }
+
+.wo-bar:hover .wo-menu-btn { visibility: visible; }
 
 /* Three-dot dropdown menu */
 .wo-dropdown {
   position: absolute;
   top: 42px;
   background: #fff;
-  border: 1.5px solid #e2e5ef;
+  border: 1.5px solid #e6ebf0;
   border-radius: 8px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.15);
   z-index: 9999;
-  min-width: 180px;
-  padding: 4px 0;
+  width: 150px;
+  max-height: 82px;
+  padding: 7px 12px 12px 12px;
 }
 
 .dropdown-item {
@@ -213,9 +228,7 @@
   background: none;
   border: none;
   text-align: left;
-  padding: 10px 18px;
+  padding-top: 5px;
   cursor: pointer;
-
-  &:hover  { background: #f5f6fa; }
   &.delete { color: #5b5fc7; }
 }

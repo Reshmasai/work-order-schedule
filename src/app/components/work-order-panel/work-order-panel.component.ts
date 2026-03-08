@@ -60,6 +60,9 @@ export class WorkOrderPanelComponent implements OnChanges {
   // A signal works well here because the template reads it reactively without subscribing.
   selectedStatus = signal<string>('open');
 
+  userSelectedStartDate = false;
+  userSelectedEndDate = false;
+
   // The reactive form — defined at class level so TypeScript can infer the type
   // and we avoid any initialisation-order issues that can arise in the constructor
   form: FormGroup = this.fb.group({
@@ -213,4 +216,14 @@ export class WorkOrderPanelComponent implements OnChanges {
     d.setDate(d.getDate() + days);
     return d.toISOString().split('T')[0];
   }
+
+  onStartDateSelected(date: any, picker: any) {
+  this.userSelectedStartDate = true;
+  picker.close();
+}
+
+onEndDateSelected(date: any, picker: any) {
+  this.userSelectedEndDate = true;
+  picker.close();
+}
 }

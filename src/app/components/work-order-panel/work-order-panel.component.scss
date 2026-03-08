@@ -15,19 +15,19 @@
     .panel {
       position: fixed;
       top: 0; right: 0; bottom: 0;
-      width: 420px;
+      width: 591px;
       background: #fff;
       box-shadow: -4px 0 32px rgba(0,0,0,0.12);
+      border-radius: 12px;
       z-index: 100;
       transform: translateX(100%);
       transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
       overflow-y: auto;
-
       &.open { transform: translateX(0); }
     }
 
     .panel-inner {
-      padding: 28px 28px 40px;
+      padding: 16px 24px;
       min-height: 100%;
       display: flex;
       flex-direction: column;
@@ -38,35 +38,36 @@
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 32px;
       gap: 16px;
     }
 
     .panel-title {
       font-family: "Circular-Std", sans-serif;
-      font-size: 17px;
+      font-size: 20px;
       font-weight: 600;
-      color: #1a1a2e;
-      margin: 0 0 4px;
+      line-height: 24px;
+      color: #2f3059;
+      margin: 0;
     }
 
     .panel-subtitle {
       font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
-      color: #9da3bc;
-      margin: 0;
+      font-size: 16px;
+      font-weight: 400;
+      color: #687196;
+      margin-top: 5px;
     }
 
     .panel-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 
     .btn-cancel {
       font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 500;
-      color: #4a4d6a;
-      background: #fff;
+      color: #2f3059;
+      background: #ffffff;
       border: none;
-      padding: 8px 18px;
+      padding: 6.5px 8px;
       cursor: pointer;
       border-radius: 7px;
       height: 36px;
@@ -80,12 +81,12 @@
 
     .btn-create {
       font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 500;
-      color: #fff;
-      background: #5b5fc7;
+      color: #ffffff;
+      background: #5659ff;
       border: none;
-      padding: 8px 20px;
+      padding: 6.5px 8px;
       cursor: pointer;
       border-radius: 7px;
       height: 36px;
@@ -97,42 +98,66 @@
       &:hover { background: #4a4eb8; box-shadow: 0 4px 12px rgba(91,95,199,0.45); }
     }
 
+    .seperator {
+      border: 0; 
+      height: 1.5px; 
+      background-color: #e6ebf0; 
+      width: 585px; 
+      margin: 0 -24px 24px -24px;
+      padding:0 !important
+    }
+
     // Form fields
-    .panel-form { display: flex; flex-direction: column; gap: 20px; flex: 1; }
-    .form-field  { display: flex; flex-direction: column; gap: 6px; }
+    .panel-form { display: flex; flex-direction: column; gap: 24px; flex: 1; }
+    .form-field  { display: flex; flex-direction: column; gap: 8px; }
 
     .field-label {
       font-family: "Circular-Std", sans-serif;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
-      color: #5b6078;
+      color: #687196;
     }
 
     .field-input {
-      font-family: "Circular-Std", sans-serif;
-      font-size: 14px;
-      color: #1a1a2e;
-      background: #fff;
-      border: 1.5px solid #e2e5ef;
-      border-radius: 6px;
-      padding: 10px 14px;
-      outline: none;
-      width: 100%;
-      box-sizing: border-box;
-      transition: border-color 0.15s;
+    font-family: "Circular-Std", sans-serif;
+    font-size: 14px;
+    color: #030929;
+    background: #fff;
 
-      &::placeholder { color: #c0c3d4; }
-      &:focus, &.focused { border-color: #5b5fc7; }
-      &.field-error-border { border-color: #e53e3e; }
+    border: 1px solid #E2E5EF;
+    border-radius: 6px;
+
+    box-shadow: 
+      0 1.5px 3px -1.5px #C8CFE9,
+      0 1px 0.5px -1px #D8DCEB;
+
+    padding: 11px 19.7px 11px 8.64px;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
+
+    &::placeholder {
+      color: #a4aac0;
     }
 
-    // Date inputs use the lighter purple border from the mockup
-    .date-input {
-      cursor: pointer;
-      color: #9da3bc;
-      border-color: #c5c7f0;
+    &:focus {
+       border: 2px solid #aaafff
+    }
 
-      &:hover { border-color: #9da3bc; }
+    &.field-error-border {
+      border-color: #e53e3e;
+    }
+  }
+
+    // Date inputs
+    .date-input {
+      color: #a4aac0; // grey initially
+      cursor: pointer;
+
+      &.user-selected {
+        color: #030929; // black after user selects from calendar
+      }
     }
 
     .field-error-msg {
@@ -216,6 +241,9 @@
         box-shadow: none !important;
         cursor: pointer;
         background: #fff !important;
+        position: relative !important;
+        display: flex;
+        align-items: center;
       }
 
       &.ng-select-focused .ng-select-container { border-color: #5b5fc7 !important; }
@@ -227,14 +255,16 @@
         border: 1.5px solid #e2e5ef !important;
         border-radius: 8px !important;
         box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
-        margin-top: 4px !important;
+        margin-top: 5px !important;
         z-index: 9999 !important;
+        padding-top: 13px;
+        padding-bottom: 11px;
       }
 
       .ng-option {
         font-family: "Circular-Std", sans-serif !important;
         font-size: 13px !important;
-        padding: 10px 16px !important;
+        padding: 5px 12px !important;
         color: #3a3d52 !important;
         background: #fff !important;
 
@@ -247,15 +277,15 @@
     ::ng-deep .status-select .ng-value {
       display: inline-flex !important;
       align-items: center !important;
-      padding: 3px 12px !important;
-      border-radius: 20px !important;
-      font-size: 13px !important;
+      padding: 3px 8px !important;
+      border-radius: 5px !important;
+      font-size: 14px !important;
       font-weight: 500 !important;
       line-height: 1.4 !important;
     }
 
-    ::ng-deep .status-val-open .ng-value        { background: #d1fae5 !important; color: #065f46 !important; }
-    ::ng-deep .status-val-in-progress .ng-value { background: #ecedfb !important; color: #5b5fc7 !important; }
-    ::ng-deep .status-val-complete .ng-value    { background: #d1fae5 !important; color: #065f46 !important; }
-    ::ng-deep .status-val-blocked .ng-value     { background: #fef3e2 !important; color: #b45309 !important; }
+    ::ng-deep .status-val-open .ng-value        { background: #e4fdff !important; color: #00b0bf !important; }
+    ::ng-deep .status-val-in-progress .ng-value { background: #d6d8ff !important; color: #3e40db !important; }
+    ::ng-deep .status-val-complete .ng-value    { background: #e1ffcc !important; color: #08a268 !important; }
+    ::ng-deep .status-val-blocked .ng-value     { background: #fceeb5 !important; color: #b13600 !important; }
     

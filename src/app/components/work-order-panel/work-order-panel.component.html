@@ -21,6 +21,8 @@
           </div>
         </div>
 
+        <hr class="seperator">
+
         <form [formGroup]="form" class="panel-form" (keydown.escape)="onCancel()">
 
           <div class="form-field">
@@ -60,12 +62,33 @@
             by the panel's overflow:hidden / overflow-y:auto.
             readonly stops native keyboard input — the picker handles selection.
           -->
+
+           <div class="form-field">
+            <label class="field-label">End date</label>
+            <input
+              class="field-input date-input"
+              placeholder="DD.MM.YYYY"
+              [value]="formatDate(form.get('endDate')?.value)"
+              [class.user-selected]="userSelectedEndDate"
+              [class.field-error-border]="form.get('endDate')?.invalid && form.get('endDate')?.touched"
+              readonly
+              ngbDatepicker
+              #endPicker="ngbDatepicker"
+              formControlName="endDate"
+              [autoClose]="true"
+              container="body"
+              (dateSelect)="onEndDateSelected($event, endPicker)"
+              (click)="endPicker.toggle()"
+            />
+          </div>
+
           <div class="form-field">
             <label class="field-label">Start date</label>
             <input
               class="field-input date-input"
               placeholder="DD.MM.YYYY"
               [value]="formatDate(form.get('startDate')?.value)"
+              [class.user-selected]="userSelectedStartDate"
               [class.field-error-border]="form.get('startDate')?.invalid && form.get('startDate')?.touched"
               readonly
               ngbDatepicker
@@ -75,24 +98,7 @@
               container="body"
               (click)="startPicker.toggle()"
               (dateSelect)="startPicker.close()"
-            />
-          </div>
-
-          <div class="form-field">
-            <label class="field-label">End date</label>
-            <input
-              class="field-input date-input"
-              placeholder="DD.MM.YYYY"
-              [value]="formatDate(form.get('endDate')?.value)"
-              [class.field-error-border]="form.get('endDate')?.invalid && form.get('endDate')?.touched"
-              readonly
-              ngbDatepicker
-              #endPicker="ngbDatepicker"
-              formControlName="endDate"
-              [autoClose]="true"
-              container="body"
-              (click)="endPicker.toggle()"
-              (dateSelect)="endPicker.close()"
+              (dateSelect)="onStartDateSelected($event, startPicker)"
             />
           </div>
 

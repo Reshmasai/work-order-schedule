@@ -64,19 +64,21 @@
             (mouseenter)="hoveredBar.set(bar.workOrder.docId); barHovered.set(true)"
             (mouseleave)="hoveredBar.set(null); barHovered.set(false)"
           >
-            @if (bar.width >= 80) {
-              <span class="wo-name">{{ bar.workOrder.data.name }}</span>
-            }
+          @if (bar.width >= 80) {
+            <span class="wo-name">{{ bar.workOrder.data.name }}</span>
+          }
+          <div class="wo-right">
             @if (bar.width >= 140) {
               <span class="wo-status-badge">{{ getStatusLabel(bar.workOrder.data.status) }}</span>
             }
-            @if (hoveredBar() === bar.workOrder.docId || openMenuId() === bar.workOrder.docId) {
-              <button
-                class="wo-menu-btn"
-                [class.active]="openMenuId() === bar.workOrder.docId"
-                (click)="toggleMenu($event, bar.workOrder.docId)"
-              >•••</button>
-            }
+            <button
+              class="wo-menu-btn"
+              [class.active]="openMenuId() === bar.workOrder.docId"
+              (click)="toggleMenu($event, bar.workOrder.docId)"
+              (mouseenter)="barHovered.set(true)"
+              (mouseleave)="barHovered.set(false)"
+            >•••</button>
+          </div>
           </div>
 
           <!-- Edit / Delete dropdown anchored to the right edge of the bar -->
